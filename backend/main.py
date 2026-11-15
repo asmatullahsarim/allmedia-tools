@@ -37,7 +37,7 @@ register_heif_opener()
 app = FastAPI(
     title="AllMedia Tools API",
     version="4.0.0",
-    description="Production FastAPI backend for Hugging Face Spaces (2 vCPU / 16GB RAM).",
+    description="FastAPI backend and static website for AllMedia Tools.",
 )
 
 app.add_middleware(
@@ -370,52 +370,77 @@ def _extract_images_gallery_dl(url: str) -> list[dict[str, Any]]:
 def _extract_images_bs4(url: str) -> tuple[str, list[dict[str, Any]]]:
     session = build_requests_session()
     try:
-        resp = session.get(url, timeout=15)
+        resp = session.get(url, stream=True, timeout=15)
         resp.raise_for_status()
     except Exception as exc:
         raise HTTPException(status_code=400, detail=f"Could not load URL: {exc}")
 
-    soup = BeautifulSoup(resp.text, "html.parser")
-    title = (soup.title.string.strip() if soup.title and soup.title.string else "Extracted Photos")[:120]
+    try:
+        page_url = resp.url
+        content_type = resp.headers.get("Content-Type", "").split(";", 1)[0].strip().lower()
+        if content_type.startswith("image/"):
+            path_name = os.path.basename(urllib.parse.urlsplit(page_url).path)
+            filename = sanitize_filename(path_name or "image.jpg", "image.jpg")
+            if "." not in filename:
+                suffix = {"image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp",
+                          "image/gif": ".gif", "image/avif": ".avif"}.get(content_type, ".img")
+                filename += suffix
+            if int(resp.headers.get("Content-Length", "0") or 0) > 25 * 1024 * 1024:
+                raise HTTPException(status_code=413, detail="Remote image exceeds 25 MB.")
+            return os.path.splitext(filename)[0][:120], [
+                {"url": page_url, "width": None, "height": None, "filename": filename}
+            ]
+        if content_type and content_type not in ("text/html", "application/xhtml+xml", "text/plain"):
+            raise HTTPException(status_code=415, detail="URL is not an image or an image page.")
 
-    candidates: list[str] = []
-    for prop in ("og:image:secure_url", "og:image", "twitter:image", "twitter:image:src"):
-        tag = soup.find("meta", attrs={"property": prop}) or soup.find("meta", attrs={"name": prop})
-        if tag and tag.get("content"):
-            candidates.append(urllib.parse.urljoin(url, tag["content"].strip()))
+        page = bytearray()
+        for chunk in resp.iter_content(65536):
+            page.extend(chunk)
+            if len(page) > 8 * 1024 * 1024:
+                raise HTTPException(status_code=413, detail="Image page exceeds the 8 MB limit.")
+        soup = BeautifulSoup(bytes(page), "html.parser")
+        title = (soup.title.string.strip() if soup.title and soup.title.string else "Extracted Photos")[:120]
 
-    for script in soup.find_all("script", attrs={"type": "application/ld+json"}):
-        raw_json = script.string or ""
-        for match in re.findall(r'"(?:contentUrl|url|image)"\s*:\s*"(https?:[^"]+)"', raw_json):
-            candidates.append(match.replace("\\/", "/"))
+        candidates: list[str] = []
+        for prop in ("og:image:secure_url", "og:image", "twitter:image", "twitter:image:src"):
+            tag = soup.find("meta", attrs={"property": prop}) or soup.find("meta", attrs={"name": prop})
+            if tag and tag.get("content"):
+                candidates.append(urllib.parse.urljoin(page_url, tag["content"].strip()))
 
-    for img in soup.find_all("img"):
-        srcset = img.get("srcset")
-        if srcset:
-            parts = [p.strip().split(" ")[0] for p in srcset.split(",") if p.strip()]
-            if parts:
-                candidates.append(urllib.parse.urljoin(url, parts[-1]))
-        for attr in ("data-src", "data-original", "src"):
-            val = img.get(attr)
-            if val and not val.startswith("data:"):
-                candidates.append(urllib.parse.urljoin(url, val.strip()))
+        for script in soup.find_all("script", attrs={"type": "application/ld+json"}):
+            raw_json = script.string or ""
+            for match in re.findall(r'"(?:contentUrl|url|image)"\s*:\s*"(https?:[^"]+)"', raw_json):
+                candidates.append(match.replace("\\/", "/"))
 
-    seen: set[str] = set()
-    cleaned: list[dict[str, Any]] = []
-    skip_words = ("favicon", "sprite", "logo", "1x1", "pixel", "blank", "avatar_default")
-    for idx, c_url in enumerate(candidates, start=1):
-        lower = c_url.lower()
-        if any(w in lower for w in skip_words) or lower.endswith(".svg"):
-            continue
-        if c_url not in seen:
-            seen.add(c_url)
-            ext = "png" if ".png" in lower else ("webp" if ".webp" in lower else "jpg")
-            cleaned.append(
-                {"url": c_url, "width": None, "height": None, "filename": f"photo_{idx}.{ext}"}
-            )
-        if len(cleaned) >= 24:
-            break
-    return title, cleaned
+        for img in soup.find_all("img"):
+            srcset = img.get("srcset")
+            if srcset:
+                parts = [p.strip().split(" ")[0] for p in srcset.split(",") if p.strip()]
+                if parts:
+                    candidates.append(urllib.parse.urljoin(page_url, parts[-1]))
+            for attr in ("data-src", "data-original", "src"):
+                val = img.get(attr)
+                if val and not val.startswith("data:"):
+                    candidates.append(urllib.parse.urljoin(page_url, val.strip()))
+
+        seen: set[str] = set()
+        cleaned: list[dict[str, Any]] = []
+        skip_words = ("favicon", "sprite", "logo", "1x1", "pixel", "blank", "avatar_default")
+        for idx, c_url in enumerate(candidates, start=1):
+            lower = c_url.lower()
+            if any(w in lower for w in skip_words) or lower.endswith(".svg"):
+                continue
+            if c_url not in seen:
+                seen.add(c_url)
+                ext = "png" if ".png" in lower else ("webp" if ".webp" in lower else "jpg")
+                cleaned.append(
+                    {"url": c_url, "width": None, "height": None, "filename": f"photo_{idx}.{ext}"}
+                )
+            if len(cleaned) >= 24:
+                break
+        return title, cleaned
+    finally:
+        resp.close()
 
 
 @app.post("/api/image-download")
@@ -425,10 +450,16 @@ def extract_images(req: UrlPayload, request: Request):
     url = validate_http_url(req.url)
     base_url = str(request.base_url).rstrip("/")
 
-    images = _extract_images_gallery_dl(url)
-    title = "Extracted Album"
-    if not images:
-        title, images = _extract_images_bs4(url)
+    path_ext = os.path.splitext(urllib.parse.urlsplit(url).path.lower())[1]
+    if path_ext in {".jpg", ".jpeg", ".png", ".webp", ".gif", ".avif", ".heic", ".heif"}:
+        filename = sanitize_filename(os.path.basename(urllib.parse.urlsplit(url).path) or "image.jpg", "image.jpg")
+        title = os.path.splitext(filename)[0][:120]
+        images = [{"url": url, "width": None, "height": None, "filename": filename}]
+    else:
+        images = _extract_images_gallery_dl(url)
+        title = "Extracted Album"
+        if not images:
+            title, images = _extract_images_bs4(url)
     if not images:
         raise HTTPException(status_code=404, detail="No HD images found at this URL.")
 

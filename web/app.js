@@ -1,6 +1,6 @@
 // ============================================================================
-// CONFIGURE YOUR HUGGING FACE SPACE FASTAPI BACKEND URL HERE
-// Example: const BACKEND_URL = "https://your-username-allmedia-api.hf.space";
+// Configure an optional separate AllMedia API origin here.
+// Leave empty when the API and website are served from the same origin.
 // Leave empty ("") if served from the same origin or configured in-app.
 // ============================================================================
 const BACKEND_URL = "";
@@ -54,7 +54,7 @@ const BACKEND_URL = "";
         location.hostname.endsWith(".pages.dev") ||
         location.hostname === "appassets.androidplatform.net")
     ) {
-      throw new Error("Hugging Face BACKEND_URL not set. Set BACKEND_URL at the top of app.js.");
+      throw new Error("AllMedia API URL is not configured. Set backendUrl in config.js for a separately hosted API.");
     }
   }
 
@@ -784,7 +784,7 @@ const BACKEND_URL = "";
         mountYoutubeTranscript(bodyEl, prefillUrl);
         break;
       case "api_video_convert":
-        mountVideoConvert(bodyEl, tool);
+        mountVideoConvert(bodyEl, tool, prefillUrl);
         break;
       case "api_bg":
         mountBgRemover(bodyEl, tool);
@@ -1478,7 +1478,7 @@ const BACKEND_URL = "";
       }
       if (!data) data = await tryKeylessVideoFallback(u);
       if (!data) {
-        out.innerHTML = errorBoxHtml("Could not fetch video. Verify your Hugging Face BACKEND_URL or try another link.");
+        out.innerHTML = errorBoxHtml("Could not fetch video. Check that the AllMedia API is online or try another supported link.");
         return;
       }
       out.innerHTML = `
@@ -1617,7 +1617,7 @@ const BACKEND_URL = "";
             { label: "HQ (480x360)", url: `https://i.ytimg.com/vi/${yt[1]}/hqdefault.jpg`, filename: `yt_${yt[1]}_hq.jpg` },
           ];
         }
-        if (!items || !items.length) throw new Error("Connect Hugging Face BACKEND_URL for Instagram DPs.");
+        if (!items || !items.length) throw new Error("Connect the AllMedia API to load Instagram profile pictures.");
         out.innerHTML = `<div class="grid grid-cols-2 gap-2">${items.map((it) => `
           <div class="rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700">
             <img src="${escapeHtml(it.download_url || it.url)}" class="w-full h-28 object-cover" alt="${escapeHtml(it.label)}" />
@@ -1664,10 +1664,10 @@ const BACKEND_URL = "";
     });
   }
 
-  function mountVideoConvert(bodyEl, tool) {
+  function mountVideoConvert(bodyEl, tool, prefillUrl = "") {
     let extra = "";
     if (tool.action === "mp4_to_mp3" || tool.action === "extract_audio") {
-      extra = `<input id="vc-url" type="url" placeholder="Or paste video link for MP3 extraction..." class="w-full rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-3 py-2 text-xs" /><select id="vc-bitrate" class="w-full rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-2 text-xs"><option value="128k">128 kbps</option><option value="192k" selected>192 kbps (HD)</option><option value="320k">320 kbps (Max)</option></select>`;
+      extra = `<input id="vc-url" type="url" value="${escapeHtml(prefillUrl)}" placeholder="Or paste video link for MP3 extraction..." class="w-full rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-3 py-2 text-xs" /><select id="vc-bitrate" class="w-full rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-2 text-xs"><option value="128k">128 kbps</option><option value="192k" selected>192 kbps (HD)</option><option value="320k">320 kbps (Max)</option></select>`;
     } else if (tool.action === "trim_video") {
       extra = `<div class="flex gap-2 text-xs"><input id="vc-start" type="number" min="0" value="0" placeholder="Start (sec)" class="flex-1 rounded-xl bg-slate-100 dark:bg-slate-800 border p-2" /><input id="vc-end" type="number" min="1" value="10" placeholder="End (sec)" class="flex-1 rounded-xl bg-slate-100 dark:bg-slate-800 border p-2" /></div>`;
     } else if (tool.action === "resize_video") {
@@ -1724,6 +1724,7 @@ const BACKEND_URL = "";
         out.innerHTML = errorBoxHtml(err.message);
       }
     });
+    if (prefillUrl) document.getElementById("vc-go-btn").click();
   }
 
   function mountBgRemover(bodyEl, tool) {

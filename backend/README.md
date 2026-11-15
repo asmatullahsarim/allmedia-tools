@@ -2,6 +2,6 @@
 
 API-only Docker context: this backend directory. Combined website/API context: project root (use the root Dockerfile).
 
-See ../AUDIT_AND_SETUP.md for fixes, configuration, validation and known limitations. For a Hugging Face Space using the combined build, upload root Dockerfile, backend/ and web/; website URL ends with /tools/ and health is /api/health.
+The root Dockerfile serves the website at `/tools/` and the health endpoint at `/api/health`. The API-only Dockerfile is for separate hosting; set `ALLOWED_ORIGINS` to the website origin.
 
-Use ALLOWED_ORIGINS for separately hosted website origins. Keep credentials in hosting secrets. Protect public deployments with rate limiting, a job queue, and restricted network egress.
+Keep credentials in hosting secrets. Before a public launch, add rate limiting, a job queue for longer media tasks, and outbound network restrictions.
