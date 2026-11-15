@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: allmedia-tools
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /api/health
+    envVars:
+      - key: PORT
+        value: "7860"
+      - key: WORK_TMP_DIR
+        value: /tmp/allmedia_work

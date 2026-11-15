@@ -1,0 +1,165 @@
+/* AllMedia Tools - 5 Dynamic UI Skins + Mobile Native Polishing */
+:root {
+  --skin-primary: #2563eb;
+  --skin-primary-hover: #1d4ed8;
+  --skin-soft: #eff6ff;
+  --skin-soft-dark: rgba(37, 99, 235, 0.22);
+  --skin-text: #2563eb;
+  --skin-text-dark: #60a5fa;
+  --skin-shadow: rgba(37, 99, 235, 0.28);
+  --skin-grad-from: #2563eb;
+  --skin-grad-to: #4f46e5;
+}
+
+[data-skin="emerald"] {
+  --skin-primary: #059669;
+  --skin-primary-hover: #047857;
+  --skin-soft: #ecfdf5;
+  --skin-soft-dark: rgba(5, 150, 105, 0.22);
+  --skin-text: #059669;
+  --skin-text-dark: #34d399;
+  --skin-shadow: rgba(5, 150, 105, 0.28);
+  --skin-grad-from: #059669;
+  --skin-grad-to: #0d9488;
+}
+
+[data-skin="purple"] {
+  --skin-primary: #7c3aed;
+  --skin-primary-hover: #6d28d9;
+  --skin-soft: #f5f3ff;
+  --skin-soft-dark: rgba(124, 58, 237, 0.22);
+  --skin-text: #7c3aed;
+  --skin-text-dark: #a78bfa;
+  --skin-shadow: rgba(124, 58, 237, 0.28);
+  --skin-grad-from: #7c3aed;
+  --skin-grad-to: #c026d3;
+}
+
+[data-skin="sunset"] {
+  --skin-primary: #e11d48;
+  --skin-primary-hover: #be123c;
+  --skin-soft: #fff1f2;
+  --skin-soft-dark: rgba(225, 29, 72, 0.22);
+  --skin-text: #e11d48;
+  --skin-text-dark: #fb7185;
+  --skin-shadow: rgba(225, 29, 72, 0.28);
+  --skin-grad-from: #e11d48;
+  --skin-grad-to: #ea580c;
+}
+
+[data-skin="gold"] {
+  --skin-primary: #d97706;
+  --skin-primary-hover: #b45309;
+  --skin-soft: #fffbeb;
+  --skin-soft-dark: rgba(217, 119, 6, 0.22);
+  --skin-text: #d97706;
+  --skin-text-dark: #fbbf24;
+  --skin-shadow: rgba(217, 119, 6, 0.28);
+  --skin-grad-from: #d97706;
+  --skin-grad-to: #ca8a04;
+}
+
+.skin-bg { background-color: var(--skin-primary); }
+.skin-bg:hover { background-color: var(--skin-primary-hover); }
+.skin-grad { background-image: linear-gradient(135deg, var(--skin-grad-from), var(--skin-grad-to)); }
+.skin-text { color: var(--skin-text); }
+.dark .skin-text { color: var(--skin-text-dark); }
+.skin-soft-bg { background-color: var(--skin-soft); }
+.dark .skin-soft-bg { background-color: var(--skin-soft-dark); }
+.skin-shadow { box-shadow: 0 4px 14px -2px var(--skin-shadow); }
+.skin-border-focus:focus-within { border-color: var(--skin-primary); }
+
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+html {
+  scroll-behavior: smooth;
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+/* Watermark Canvas Stage */
+.canvas-stage {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  border-radius: 14px;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  background: #0f172a;
+  touch-action: none;
+}
+
+.canvas-stage canvas {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+#wm-mask-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+  cursor: crosshair;
+}
+
+/* Checkerboard preview for transparent PNGs */
+.checker-bg {
+  background: repeating-conic-gradient(#e2e8f0 0% 25%, #f8fafc 0% 50%) 50% / 14px 14px;
+}
+
+.dark .checker-bg {
+  background: repeating-conic-gradient(#1f2937 0% 25%, #111827 0% 50%) 50% / 14px 14px;
+}
+
+/* Loading Spinner inside Drawer */
+@keyframes avdSpin {
+  to { transform: rotate(360deg); }
+}
+
+.spinner-circle {
+  width: 28px;
+  height: 28px;
+  border: 3px solid rgba(148, 163, 184, 0.3);
+  border-top-color: var(--skin-primary);
+  border-radius: 50%;
+  animation: avdSpin 0.75s linear infinite;
+}
+
+/* Defensive layout & click-safety fallbacks */
+.hidden {
+  display: none !important;
+}
+
+#smart-link-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: 6px;
+  width: 100%;
+}
+
+#smart-link-input {
+  flex: 1 1 0%;
+  min-width: 0;
+}
+
+#tools-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+#tool-drawer.drawer-closed {
+  display: none;
+  pointer-events: none;
+}
+
+#drawer-backdrop {
+  pointer-events: auto;
+}
+
+#adsterra-banner:not([hidden]) { display:flex; width:100%; flex-direction:column; align-items:center; justify-content:center; flex-shrink:0; padding:4px 0 8px; min-height:62px; background:#f1f5f9; }
+#adsterra-banner small { color:#64748b; font:10px sans-serif; margin-bottom:4px; }
+#adsterra-banner iframe { border:0; max-width:100%; }
+@media (max-width:340px) { #adsterra-banner iframe { width:100%; } }

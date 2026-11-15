@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en" class="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AllMedia Tools - Free Media &amp; AI Utility Suite</title>
+  <meta name="description" content="80+ tools: Video &amp; Image Downloader, AI Image &amp; Chat, BG Remover, OpenCV Watermark Cleaner, FFmpeg Video Converter, PDF Suite &amp; QR Generator." />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Inter', 'sans-serif'] }
+        }
+      }
+    };
+  </script>
+  <!-- Client-Side Processing Libraries -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" defer></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" defer></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js" defer></script>
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js" defer></script>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body data-skin="ocean" class="bg-slate-200 dark:bg-slate-950 min-h-screen flex flex-col items-center justify-center sm:py-5 font-sans antialiased transition-colors duration-300">
+
+  <!-- Desktop Helper Badge -->
+  <div class="hidden sm:flex items-center gap-2 mb-2.5 px-3.5 py-1 rounded-full bg-white/90 dark:bg-slate-900/90 text-slate-700 dark:text-slate-300 text-xs font-semibold shadow-sm border border-slate-300/70 dark:border-slate-800">
+    <span class="w-2 h-2 rounded-full skin-bg animate-pulse"></span>
+    AllMedia Tools • 5 UI Skins + Dual Link/Search Bar + 80+ Real Tools
+  </div>
+
+  <!-- Mobile-First App Container -->
+  <div id="app-shell" class="relative w-full max-w-[480px] h-[100dvh] sm:h-[860px] sm:max-h-[93vh] bg-[#F8FAFC] dark:bg-[#0B1120] sm:rounded-[38px] sm:border-[8px] sm:border-slate-800 shadow-2xl overflow-hidden flex flex-col transition-colors duration-300">
+
+    <!-- 1. Top Sticky Header with Skin Switcher, API Server Button & Dark/Light Toggle -->
+    <header class="bg-white/95 dark:bg-slate-900/95 backdrop-blur-md px-4 py-2.5 flex items-center justify-between border-b border-slate-200/75 dark:border-slate-800 z-30 shrink-0 transition-colors">
+      <div class="flex items-center gap-2.5">
+        <div class="w-9 h-9 rounded-xl skin-grad flex items-center justify-center text-white skin-shadow transition-all">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.4" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/>
+          </svg>
+        </div>
+        <div>
+          <h1 class="text-[15px] font-extrabold tracking-tight text-slate-900 dark:text-white leading-none">
+            AllMedia <span class="skin-text transition-colors">Tools</span>
+          </h1>
+          <p class="text-[10px] font-medium text-slate-500 dark:text-slate-400 mt-0.5">Free Tools • AI &amp; Media Suite</p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-1.5 relative">
+        <!-- Skin Selector Button -->
+        <button id="skin-menu-btn" aria-label="Change UI Skin" class="h-9 px-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 flex items-center gap-1.5 hover:bg-slate-200 dark:hover:bg-slate-700 active:scale-95 transition-all text-xs font-bold">
+          <span id="current-skin-dot" class="w-3 h-3 rounded-full skin-bg ring-2 ring-white dark:ring-slate-900"></span>
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.1" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01"/>
+          </svg>
+          <span class="hidden sm:inline">Skins</span>
+        </button>
+
+        <!-- Dark / Light Toggle -->
+        <button id="theme-toggle-btn" aria-label="Toggle Dark Mode" class="w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 flex items-center justify-center hover:bg-slate-200 dark:hover:bg-slate-700 active:scale-95 transition-all">
+          <svg class="w-4 h-4 hidden dark:block text-amber-400" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/>
+          </svg>
+          <svg class="w-4 h-4 block dark:hidden text-slate-700" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>
+          </svg>
+        </button>
+
+        <!-- 5 UI Skins Popover -->
+        <div id="skin-popover" class="hidden absolute right-0 top-11 w-52 bg-white dark:bg-slate-800 rounded-2xl p-2.5 shadow-xl border border-slate-200 dark:border-slate-700 z-50">
+          <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400 px-2 pb-1.5">Select App Skin</p>
+          <div class="space-y-1">
+            <button onclick="setAppSkin('ocean', 'Ocean Blue')" class="skin-option w-full flex items-center justify-between px-2.5 py-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-700/70 text-xs font-semibold text-slate-800 dark:text-slate-100">
+              <span class="flex items-center gap-2"><span class="w-3.5 h-3.5 rounded-full bg-[#2563EB]"></span> Ocean Blue</span>
+              <span class="skin-check text-[10px] font-bold text-blue-600" data-check="ocean">Active</span>
+            </button>
+            <button onclick="setAppSkin('emerald', 'Emerald Mint')" class="skin-option w-full flex items-center justify-between px-2.5 py-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-700/70 text-xs font-semibold text-slate-800 dark:text-slate-100">
+              <span class="flex items-center gap-2"><span class="w-3.5 h-3.5 rounded-full bg-[#059669]"></span> Emerald Mint</span>
+              <span class="skin-check hidden text-[10px] font-bold text-emerald-600" data-check="emerald">Active</span>
+            </button>
+            <button onclick="setAppSkin('purple', 'Royal Purple')" class="skin-option w-full flex items-center justify-between px-2.5 py-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-700/70 text-xs font-semibold text-slate-800 dark:text-slate-100">
+              <span class="flex items-center gap-2"><span class="w-3.5 h-3.5 rounded-full bg-[#7C3AED]"></span> Royal Purple</span>
+              <span class="skin-check hidden text-[10px] font-bold text-purple-600" data-check="purple">Active</span>
+            </button>
+            <button onclick="setAppSkin('sunset', 'Sunset Coral')" class="skin-option w-full flex items-center justify-between px-2.5 py-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-700/70 text-xs font-semibold text-slate-800 dark:text-slate-100">
+              <span class="flex items-center gap-2"><span class="w-3.5 h-3.5 rounded-full bg-[#E11D48]"></span> Sunset Coral</span>
+              <span class="skin-check hidden text-[10px] font-bold text-rose-600" data-check="sunset">Active</span>
+            </button>
+            <button onclick="setAppSkin('gold', 'Gold Amber')" class="skin-option w-full flex items-center justify-between px-2.5 py-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-700/70 text-xs font-semibold text-slate-800 dark:text-slate-100">
+              <span class="flex items-center gap-2"><span class="w-3.5 h-3.5 rounded-full bg-[#D97706]"></span> Gold Amber</span>
+              <span class="skin-check hidden text-[10px] font-bold text-amber-600" data-check="gold">Active</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Scrollable Main Body -->
+    <main id="main-scroll-area" class="flex-1 overflow-y-auto no-scrollbar pb-20">
+
+      <!-- Adsterra banner, shown only after approved code is enabled. -->
+      <div class="px-3.5 pt-2.5"><div id="adsterra-banner" hidden aria-label="Advertisement"></div></div>
+
+      <!-- Compact Hero + Dual Smart Bars -->
+      <section class="px-3.5 pt-3 pb-2.5">
+        <div class="text-center mb-3">
+          <h2 class="text-[20px] font-extrabold tracking-tight text-slate-900 dark:text-white leading-tight">
+            Free Tools to Make <span class="inline-block px-2 py-0.5 rounded-lg skin-bg text-white transition-colors">Everything</span> Simple
+          </h2>
+        </div>
+
+        <!-- 2A. Smart Link Paste Bar (Paste button at the far right end of bar) -->
+        <div class="bg-white dark:bg-slate-800/95 rounded-2xl p-1.5 shadow-sm border border-slate-200/90 dark:border-slate-700 skin-border-focus transition-all mb-2">
+          <div id="smart-link-row" class="flex items-center gap-1.5 flex-nowrap">
+            <div class="pl-2 skin-text shrink-0">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.3" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/>
+              </svg>
+            </div>
+            <input id="smart-link-input" type="url" placeholder="Paste video or image link (TikTok, IG, YT, Pinterest...)" class="flex-1 min-w-0 bg-transparent text-xs font-medium text-slate-800 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 py-1.5 focus:outline-none" />
+            <button id="smart-download-btn" type="button" class="px-3 py-1.5 rounded-xl skin-bg text-white text-xs font-bold skin-shadow shrink-0 active:scale-95 transition-all">
+              Download
+            </button>
+            <button id="clipboard-paste-btn" type="button" title="Paste from Clipboard" class="px-2.5 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 text-[11px] font-bold flex items-center gap-1 shrink-0 active:scale-95 transition-all">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+              </svg>
+              <span>Paste</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- 2B. Compact Live Tool Search Bar -->
+        <div class="bg-white dark:bg-slate-800/95 rounded-2xl px-2.5 py-1 shadow-sm border border-slate-200/80 dark:border-slate-700 skin-border-focus flex items-center gap-2 transition-all">
+          <svg class="w-4 h-4 text-slate-400 shrink-0" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+          </svg>
+          <input id="live-search-input" type="text" placeholder="Search 80+ free tools (AI Image, Chat, PDF, BG Remover...)" class="flex-1 bg-transparent text-xs font-medium text-slate-800 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 py-1.5 focus:outline-none" />
+          <button id="clear-search-btn" class="hidden text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+          </button>
+        </div>
+      </section>
+
+      <!-- 3. Compact 66px Horizontal Category Mini-Cards -->
+      <section class="pl-3.5 pb-3">
+        <div class="flex items-center gap-2 overflow-x-auto no-scrollbar pr-3.5 py-0.5">
+          <div onclick="selectCategoryFilter('ai')" class="h-[66px] min-w-[152px] shrink-0 rounded-2xl px-3 bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white shadow-sm flex items-center gap-2.5 cursor-pointer active:scale-95 transition-transform">
+            <div class="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"/></svg>
+            </div>
+            <div class="min-w-0">
+              <div class="flex items-center gap-1"><span class="text-xs font-extrabold leading-tight">AI Tools</span><span class="px-1.5 rounded bg-white/25 text-[9px] font-bold">NEW</span></div>
+              <p class="text-[10px] text-fuchsia-100 font-medium mt-0.5">8 Free AI Tools</p>
+            </div>
+          </div>
+
+          <div onclick="selectCategoryFilter('video')" class="h-[66px] min-w-[148px] shrink-0 rounded-2xl px-3 bg-gradient-to-r from-rose-500 to-orange-500 text-white shadow-sm flex items-center gap-2.5 cursor-pointer active:scale-95 transition-transform">
+            <div class="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+            </div>
+            <div class="min-w-0"><span class="block text-xs font-extrabold leading-tight">Video Tools</span><span class="inline-block mt-0.5 px-1.5 rounded bg-white/20 text-[10px] font-semibold">15 tools</span></div>
+          </div>
+
+          <div onclick="selectCategoryFilter('image')" class="h-[66px] min-w-[148px] shrink-0 rounded-2xl px-3 bg-gradient-to-r from-indigo-600 to-blue-500 text-white shadow-sm flex items-center gap-2.5 cursor-pointer active:scale-95 transition-transform">
+            <div class="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+            </div>
+            <div class="min-w-0"><span class="block text-xs font-extrabold leading-tight">Image Tools</span><span class="inline-block mt-0.5 px-1.5 rounded bg-white/20 text-[10px] font-semibold">30 tools</span></div>
+          </div>
+
+          <div onclick="selectCategoryFilter('pdf')" class="h-[66px] min-w-[144px] shrink-0 rounded-2xl px-3 bg-gradient-to-r from-sky-600 to-cyan-500 text-white shadow-sm flex items-center gap-2.5 cursor-pointer active:scale-95 transition-transform">
+            <div class="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+            </div>
+            <div class="min-w-0"><span class="block text-xs font-extrabold leading-tight">PDF Tools</span><span class="inline-block mt-0.5 px-1.5 rounded bg-white/20 text-[10px] font-semibold">18 tools</span></div>
+          </div>
+
+          <div onclick="selectCategoryFilter('converter')" class="h-[66px] min-w-[156px] shrink-0 rounded-2xl px-3 bg-gradient-to-r from-emerald-600 to-teal-500 text-white shadow-sm flex items-center gap-2.5 cursor-pointer active:scale-95 transition-transform">
+            <div class="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/></svg>
+            </div>
+            <div class="min-w-0"><span class="block text-xs font-extrabold leading-tight">Converters</span><span class="inline-block mt-0.5 px-1.5 rounded bg-white/20 text-[10px] font-semibold">8 tools</span></div>
+          </div>
+
+          <div onclick="selectCategoryFilter('other')" class="h-[66px] min-w-[144px] shrink-0 rounded-2xl px-3 bg-gradient-to-r from-amber-500 to-yellow-500 text-white shadow-sm flex items-center gap-2.5 cursor-pointer active:scale-95 transition-transform">
+            <div class="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"/></svg>
+            </div>
+            <div class="min-w-0"><span class="block text-xs font-extrabold leading-tight">Other Tools</span><span class="inline-block mt-0.5 px-1.5 rounded bg-white/20 text-[10px] font-semibold">6 tools</span></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 4. Tools Section & Category Filter Pills -->
+      <section id="tools-section-anchor" class="pt-0.5">
+        <div class="px-3.5 flex items-center justify-between mb-2">
+          <div>
+            <h2 class="text-sm font-extrabold text-slate-900 dark:text-white">Our Most Popular Tools</h2>
+            <p class="text-[10.5px] text-slate-500 dark:text-slate-400">Free AI Chat, Image Generator, Media &amp; PDF Tools</p>
+          </div>
+          <span id="showing-count-badge" class="px-2 py-0.5 rounded-full skin-soft-bg skin-text text-[10px] font-bold">85 Free</span>
+        </div>
+
+        <div class="pl-3.5 mb-3">
+          <div id="filter-pills-row" class="flex items-center gap-1.5 overflow-x-auto no-scrollbar pr-3.5 py-0.5">
+            <button type="button" onclick="selectCategoryFilter('all', false)" data-filter="all" class="filter-pill px-3 py-1.5 rounded-xl text-xs font-bold skin-bg text-white skin-shadow shrink-0 transition-all">All Tools</button>
+            <button type="button" onclick="selectCategoryFilter('ai', false)" data-filter="ai" class="filter-pill px-3 py-1.5 rounded-xl text-xs font-semibold bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200/80 dark:border-slate-700 shrink-0 transition-all">✨ AI Free</button>
+            <button type="button" onclick="selectCategoryFilter('video', false)" data-filter="video" class="filter-pill px-3 py-1.5 rounded-xl text-xs font-semibold bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200/80 dark:border-slate-700 shrink-0 transition-all">Video</button>
+            <button type="button" onclick="selectCategoryFilter('image', false)" data-filter="image" class="filter-pill px-3 py-1.5 rounded-xl text-xs font-semibold bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200/80 dark:border-slate-700 shrink-0 transition-all">Image</button>
+            <button type="button" onclick="selectCategoryFilter('pdf', false)" data-filter="pdf" class="filter-pill px-3 py-1.5 rounded-xl text-xs font-semibold bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200/80 dark:border-slate-700 shrink-0 transition-all">PDF</button>
+            <button type="button" onclick="selectCategoryFilter('converter', false)" data-filter="converter" class="filter-pill px-3 py-1.5 rounded-xl text-xs font-semibold bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200/80 dark:border-slate-700 shrink-0 transition-all">Converter</button>
+            <button type="button" onclick="selectCategoryFilter('other', false)" data-filter="other" class="filter-pill px-3 py-1.5 rounded-xl text-xs font-semibold bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200/80 dark:border-slate-700 shrink-0 transition-all">Other</button>
+          </div>
+        </div>
+
+        <!-- 5. 2-Column Tool Grid -->
+        <div id="tools-grid" class="px-3.5 grid grid-cols-2 gap-2.5"></div>
+
+        <!-- Empty Search State -->
+        <div id="no-results-box" class="hidden px-6 py-10 text-center">
+          <p class="text-sm font-bold text-slate-800 dark:text-slate-200">No matching tool found</p>
+          <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Try searching "AI Image", "Chat", "PDF", or "Watermark"</p>
+          <button onclick="resetFilters()" class="mt-3 px-4 py-2 rounded-xl skin-bg text-white text-xs font-bold">Show All Tools</button>
+        </div>
+      </section>
+    </main>
+
+
+    <!-- 6. Slide-Up Bottom Sheet Tool Drawer -->
+    <div id="drawer-backdrop" onclick="closeToolDrawer()" class="hidden pointer-events-none absolute inset-0 bg-slate-950/65 backdrop-blur-[2px] z-30 transition-opacity duration-300"></div>
+
+    <div id="tool-drawer" class="drawer-closed pointer-events-none absolute inset-x-0 bottom-0 max-h-[88%] overflow-y-auto no-scrollbar bg-white dark:bg-slate-900 rounded-t-3xl p-5 shadow-2xl border-t border-slate-200 dark:border-slate-800 z-40 transform translate-y-full transition-transform duration-300 ease-out">
+      <div class="w-10 h-1 rounded-full bg-slate-300 dark:bg-slate-700 mx-auto mb-3.5"></div>
+
+      <div class="flex items-start justify-between gap-3 mb-3">
+        <div class="flex items-center gap-3">
+          <div id="drawer-icon-box" class="w-11 h-11 rounded-2xl flex items-center justify-center shrink-0"></div>
+          <div>
+            <span id="drawer-cat-badge" class="inline-block px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wide mb-0.5">Category</span>
+            <h3 id="drawer-title" class="text-base font-extrabold text-slate-900 dark:text-white leading-tight">Tool Title</h3>
+          </div>
+        </div>
+        <button onclick="closeToolDrawer()" aria-label="Close Drawer" class="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 flex items-center justify-center hover:bg-slate-200 dark:hover:bg-slate-700 shrink-0">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+
+      <div id="drawer-dynamic-body" class="mt-2"></div>
+    </div>
+
+    <!-- Custom Toast Notification -->
+    <div id="app-toast" class="hidden absolute top-16 left-1/2 -translate-x-1/2 bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-4 py-2 rounded-full text-xs font-bold shadow-xl z-50 whitespace-nowrap transition-all">
+      Ready
+    </div>
+  </div>
+
+  <script src="config.js"></script>
+  <script src="ads-config.js"></script>
+  <script src="ads.js"></script>
+  <script src="app.js"></script>
+  <script>
+    window.addEventListener("DOMContentLoaded", function () {
+      if (!window.__ALLMEDIA_BOOTED__) {
+        var grid = document.getElementById("tools-grid");
+        if (grid && !grid.innerHTML.trim()) {
+          grid.innerHTML = '<div style="grid-column:1/-1;padding:16px;border-radius:14px;background:#fef2f2;border:1px solid #fecaca;color:#b91c1c;font-size:12px;font-weight:700;">app.js did not load. Keep index.html, style.css, and app.js in the same folder (or deploy together on Cloudflare Pages / localhost).</div>';
+        }
+      }
+    });
+  </script>
+</body>
+</html>
