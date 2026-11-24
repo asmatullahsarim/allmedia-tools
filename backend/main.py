@@ -1480,7 +1480,7 @@ def extract_thumbnail_or_dp(req: UrlPayload, request: Request):
     }
 
 
-# Mount after API routes. Root stays a health check; the tool suite lives at /tools/.
+# Mount after API routes so the homepage and tools are served from the domain root.
 _web_dir = os.path.join(os.path.dirname(__file__), "web")
 if os.path.isdir(_web_dir):
     @app.get("/robots.txt", include_in_schema=False)
@@ -1497,8 +1497,22 @@ if os.path.isdir(_web_dir):
     @app.middleware("http")
     async def normalize_public_page_urls(request: Request, call_next):
         path = request.url.path
-        if path == "/tools" or path == "/tools/index.html":
-            target = "/tools/"
+        public_pages = {
+            "/",
+            "/compress-image/",
+            "/resize-image/",
+            "/png-to-jpg/",
+            "/jpg-to-pdf/",
+            "/merge-pdf/",
+            "/mp4-to-mp3/",
+        }
+        tool_slugs = {page.strip("/") for page in public_pages if page != "/"}
+        if path in {"/index.html", "/tools", "/tools/index.html"}:
+            target = "/" if path == "/index.html" else "/tools/"
+        elif path.endswith("/index.html") and path[:-len("index.html")] in public_pages - {"/"}:
+            target = path[:-len("index.html")]
+        elif path in {f"/{slug}" for slug in tool_slugs}:
+            target = f"{path}/"
         elif path.startswith("/tools/") and path.endswith("/index.html"):
             target = path[:-len("index.html")]
         elif path.startswith("/tools/") and not path.endswith("/") and "." not in path.rsplit("/", 1)[-1]:
