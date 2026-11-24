@@ -1,6 +1,326 @@
 <!DOCTYPE html>
 <html lang="en" class="light">
 <head>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>All Media Tools - PDF Image converter - MP4 to MP3 &amp; Free Online All Video Downloader</title>
+  <meta name="description" content="Find free online tools to compress and resize images, merge PDFs, convert JPG to PDF or MP4 to MP3, and download videos from supported links." />
+  <meta property="og:title" content="All Media Tools - PDF Image converter - MP4 to MP3 &amp; Free Online All Video Downloader" />
+  <meta property="og:description" content="Find free online tools to compress and resize images, merge PDFs, convert JPG to PDF or MP4 to MP3, and download videos from supported links." />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="All Media Tools" />
+  <!-- Public SEO metadata -->
+  <link rel="canonical" href="https://allmediatool.online/" />
+  <meta property="og:url" content="https://allmediatool.online/" />
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"WebSite","name":"All Media Tools","url":"https://allmediatool.online/"}</script>
+  <!-- End public SEO metadata -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Inter', 'sans-serif'] }
+        }
+      }
+    };
+  </script>
+  <!-- Client-Side Processing Libraries -->
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body data-skin="ocean" class="bg-slate-200 dark:bg-slate-950 min-h-screen flex flex-col items-center justify-center sm:py-5 font-sans antialiased transition-colors duration-300">
+
+  <!-- Desktop Helper Badge -->
+  <div class="hidden sm:flex items-center gap-2 mb-2.5 px-3.5 py-1 rounded-full bg-white/90 dark:bg-slate-900/90 text-slate-700 dark:text-slate-300 text-xs font-semibold shadow-sm border border-slate-300/70 dark:border-slate-800">
+    <span class="w-2 h-2 rounded-full skin-bg animate-pulse"></span>
+    All Media Tools • <span id="desktop-tool-summary">83 listed tools</span>
+  </div>
+
+  <!-- Mobile-First App Container -->
+  <div id="app-shell" class="relative w-full max-w-[480px] h-[100dvh] sm:h-[860px] sm:max-h-[93vh] bg-[#F8FAFC] dark:bg-[#0B1120] sm:rounded-[38px] sm:border-[8px] sm:border-slate-800 shadow-2xl overflow-hidden flex flex-col transition-colors duration-300">
+
+    <!-- 1. Top Sticky Header with Skin Switcher, API Server Button & Dark/Light Toggle -->
+    <header class="site-header bg-white/95 dark:bg-slate-900/95 backdrop-blur-md px-4 py-2.5 flex items-center justify-between border-b border-slate-200/75 dark:border-slate-800 z-30 shrink-0 transition-colors">
+      <div class="site-brand flex items-center gap-2.5">
+        <div>
+          <a href="./" class="site-name" aria-label="All Media Tools home"><img class="site-wordmark" src="data:image/webp;base64,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" width="660" height="105" alt="All Media Tools"></a>
+          <p class="site-tagline font-medium text-slate-500 dark:text-slate-400 mt-0.5">Free Tools • AI &amp; Media</p>
+          <p id="api-health-status" data-state="checking" role="status" aria-live="polite" class="mt-1 flex items-center gap-1.5 text-[10px] font-medium text-slate-500 dark:text-slate-400">
+            <span id="api-health-dot" aria-hidden="true" class="h-1.5 w-1.5 rounded-full bg-slate-400"></span>
+            <span id="api-health-label">Checking server tools…</span>
+          </p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-1.5 relative">
+        <!-- Skin Selector Button -->
+        <button id="skin-menu-btn" aria-label="Change UI Skin" class="h-9 px-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 flex items-center gap-1.5 hover:bg-slate-200 dark:hover:bg-slate-700 active:scale-95 transition-all text-xs font-bold">
+          <span id="current-skin-dot" class="w-3 h-3 rounded-full skin-bg ring-2 ring-white dark:ring-slate-900"></span>
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.1" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01"/>
+          </svg>
+          <span class="hidden sm:inline">Skins</span>
+        </button>
+
+        <!-- Dark / Light Toggle -->
+        <button id="theme-toggle-btn" aria-label="Toggle Dark Mode" class="w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 flex items-center justify-center hover:bg-slate-200 dark:hover:bg-slate-700 active:scale-95 transition-all">
+          <svg class="w-4 h-4 hidden dark:block text-amber-400" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/>
+          </svg>
+          <svg class="w-4 h-4 block dark:hidden text-slate-700" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>
+          </svg>
+        </button>
+
+        <!-- 5 UI Skins Popover -->
+        <div id="skin-popover" class="hidden absolute right-0 top-11 w-52 bg-white dark:bg-slate-800 rounded-2xl p-2.5 shadow-xl border border-slate-200 dark:border-slate-700 z-50">
+          <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400 px-2 pb-1.5">Select App Skin</p>
+          <div class="space-y-1">
+            <button onclick="setAppSkin('ocean', 'Ocean Blue')" class="skin-option w-full flex items-center justify-between px-2.5 py-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-700/70 text-xs font-semibold text-slate-800 dark:text-slate-100">
+              <span class="flex items-center gap-2"><span class="w-3.5 h-3.5 rounded-full bg-[#2563EB]"></span> Ocean Blue</span>
+              <span class="skin-check text-[10px] font-bold text-blue-600" data-check="ocean">Active</span>
+            </button>
+            <button onclick="setAppSkin('emerald', 'Emerald Mint')" class="skin-option w-full flex items-center justify-between px-2.5 py-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-700/70 text-xs font-semibold text-slate-800 dark:text-slate-100">
+              <span class="flex items-center gap-2"><span class="w-3.5 h-3.5 rounded-full bg-[#059669]"></span> Emerald Mint</span>
+              <span class="skin-check hidden text-[10px] font-bold text-emerald-600" data-check="emerald">Active</span>
+            </button>
+            <button onclick="setAppSkin('purple', 'Royal Purple')" class="skin-option w-full flex items-center justify-between px-2.5 py-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-700/70 text-xs font-semibold text-slate-800 dark:text-slate-100">
+              <span class="flex items-center gap-2"><span class="w-3.5 h-3.5 rounded-full bg-[#7C3AED]"></span> Royal Purple</span>
+              <span class="skin-check hidden text-[10px] font-bold text-purple-600" data-check="purple">Active</span>
+            </button>
+            <button onclick="setAppSkin('sunset', 'Sunset Coral')" class="skin-option w-full flex items-center justify-between px-2.5 py-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-700/70 text-xs font-semibold text-slate-800 dark:text-slate-100">
+              <span class="flex items-center gap-2"><span class="w-3.5 h-3.5 rounded-full bg-[#E11D48]"></span> Sunset Coral</span>
+              <span class="skin-check hidden text-[10px] font-bold text-rose-600" data-check="sunset">Active</span>
+            </button>
+            <button onclick="setAppSkin('gold', 'Gold Amber')" class="skin-option w-full flex items-center justify-between px-2.5 py-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-700/70 text-xs font-semibold text-slate-800 dark:text-slate-100">
+              <span class="flex items-center gap-2"><span class="w-3.5 h-3.5 rounded-full bg-[#D97706]"></span> Gold Amber</span>
+              <span class="skin-check hidden text-[10px] font-bold text-amber-600" data-check="gold">Active</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Scrollable Main Body -->
+    <main id="main-scroll-area" class="flex-1 overflow-y-auto no-scrollbar pb-20">
+
+      <aside class="display-ad" data-display-ad="leaderboard" aria-label="Advertisement" hidden></aside>
+
+      <!-- Compact Hero + Dual Smart Bars -->
+      <section class="px-3.5 pt-3 pb-2.5">
+        <!-- SEO intro -->
+        <div class="text-center mb-3">
+          <h1 class="home-title font-extrabold tracking-tight text-slate-900 dark:text-white">Free Online Image, PDF &amp; Video Tools</h1>
+          <p class="mt-1 text-sm text-slate-600 dark:text-slate-300">Compress and resize images, merge PDFs, convert MP4 to MP3, or paste a supported video link into the downloader.</p>
+        </div>
+        <!-- End SEO intro -->
+      <div class="link-downloader" aria-label="Download from a link">
+        <!-- 2A. Smart Link Paste Bar (Paste button at the far right end of bar) -->
+        <div class="bg-white dark:bg-slate-800/95 rounded-2xl p-1.5 shadow-sm border border-slate-200/90 dark:border-slate-700 skin-border-focus transition-all mb-2">
+          <div id="smart-link-row" class="flex items-center gap-1.5 flex-nowrap">
+            <div class="pl-2 skin-text shrink-0">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.3" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/>
+              </svg>
+            </div>
+            <input id="smart-link-input" type="url" aria-label="Video or image link" placeholder="Paste a video or image link" class="flex-1 min-w-0 bg-transparent text-xs font-medium text-slate-800 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 py-1.5 focus:outline-none" />
+            <button id="smart-download-btn" type="button" class="px-3 py-1.5 rounded-xl skin-bg text-white text-xs font-bold skin-shadow shrink-0 active:scale-95 transition-all">
+              Download
+            </button>
+            <button id="clipboard-paste-btn" type="button" title="Paste from Clipboard" class="px-2.5 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 text-[11px] font-bold flex items-center gap-1 shrink-0 active:scale-95 transition-all">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+              </svg>
+              <span>Paste</span>
+            </button>
+          </div>
+        </div>
+
+      </div>
+
+      <nav class="category-navigation" aria-label="Tool categories">
+        <button type="button" data-category-link="image" aria-pressed="false">Image</button>
+        <button type="button" data-category-link="pdf" aria-pressed="false">PDF</button>
+        <button type="button" data-category-link="video" aria-pressed="false">Video</button>
+        <button type="button" data-category-link="converter" aria-pressed="false">Converters</button>
+        <button type="button" data-category-link="ai" aria-pressed="false">AI</button>
+        <button type="button" data-category-link="other" aria-pressed="false">Other</button>
+      </nav>
+
+        <!-- 2B. Compact Live Tool Search Bar -->
+        <div class="bg-white dark:bg-slate-800/95 rounded-2xl px-2.5 py-1 shadow-sm border border-slate-200/80 dark:border-slate-700 skin-border-focus flex items-center gap-2 transition-all">
+          <svg class="w-4 h-4 text-slate-400 shrink-0" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+          </svg>
+          <input id="live-search-input" type="search" aria-label="Search tools" placeholder="Search tools (AI, image, PDF, video...)" class="flex-1 bg-transparent text-xs font-medium text-slate-800 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 py-1.5 focus:outline-none" />
+          <button id="clear-search-btn" type="button" aria-label="Clear search" class="hidden text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+          </button>
+        </div>
+      </section>
+
+      <!-- SEO navigation -->
+      <nav dir="ltr" aria-label="Popular file tools" class="mx-3.5 my-4 rounded-2xl bg-white p-4 dark:bg-slate-800">
+        <h2 class="mb-2 text-base font-bold text-slate-900 dark:text-white">Popular file tools</h2>
+        <ul class="featured-tools-grid">
+
+<li><button type="button" class="featured-tool" data-featured-tool="QR Code Generator">QR Code Generator<span>Create a QR code from text or a link.</span></button></li>
+          <li><button type="button" class="featured-tool" data-featured-tool="Lorem Ipsum Generator">Lorem Ipsum Generator<span>Generate placeholder text.</span></button></li>
+          <li><button type="button" class="featured-tool" data-featured-tool="Epoch Converter">Epoch Converter<span>Convert a Unix timestamp to a date.</span></button></li>
+        </ul>
+      </nav>
+      <!-- End SEO navigation -->
+      <aside class="display-ad display-ad--desktop" data-display-ad="leaderboard" aria-label="Advertisement" hidden></aside>
+
+
+      <!-- 4. Tools Section & Category Filter Pills -->
+      <section id="tools-section-anchor" class="pt-0.5">
+        <div class="px-3.5 flex items-center justify-between mb-2">
+          <div>
+            <h2 class="text-sm font-extrabold text-slate-900 dark:text-white">Our Most Popular Tools</h2>
+            <p class="text-[10.5px] text-slate-500 dark:text-slate-400">Choose a tool to process your file or create something new.</p>
+          </div>
+          <span id="showing-count-badge" class="px-2 py-0.5 rounded-full skin-soft-bg skin-text text-[10px] font-bold">85 tools</span>
+        </div>
+
+        <div class="pl-3.5 mb-3">
+          <div id="filter-pills-row" class="flex items-center gap-1.5 overflow-x-auto no-scrollbar pr-3.5 py-0.5">
+            <button type="button" onclick="selectCategoryFilter('all', false)" data-filter="all" class="filter-pill px-3 py-1.5 rounded-xl text-xs font-bold skin-bg text-white skin-shadow shrink-0 transition-all">All Tools</button>
+            <button type="button" onclick="selectCategoryFilter('ai', false)" data-filter="ai" class="filter-pill px-3 py-1.5 rounded-xl text-xs font-semibold bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200/80 dark:border-slate-700 shrink-0 transition-all">✨ AI Free</button>
+            <button type="button" onclick="selectCategoryFilter('video', false)" data-filter="video" class="filter-pill px-3 py-1.5 rounded-xl text-xs font-semibold bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200/80 dark:border-slate-700 shrink-0 transition-all">Video</button>
+            <button type="button" onclick="selectCategoryFilter('image', false)" data-filter="image" class="filter-pill px-3 py-1.5 rounded-xl text-xs font-semibold bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200/80 dark:border-slate-700 shrink-0 transition-all">Image</button>
+            <button type="button" onclick="selectCategoryFilter('pdf', false)" data-filter="pdf" class="filter-pill px-3 py-1.5 rounded-xl text-xs font-semibold bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200/80 dark:border-slate-700 shrink-0 transition-all">PDF</button>
+            <button type="button" onclick="selectCategoryFilter('converter', false)" data-filter="converter" class="filter-pill px-3 py-1.5 rounded-xl text-xs font-semibold bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200/80 dark:border-slate-700 shrink-0 transition-all">Converter</button>
+            <button type="button" onclick="selectCategoryFilter('other', false)" data-filter="other" class="filter-pill px-3 py-1.5 rounded-xl text-xs font-semibold bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200/80 dark:border-slate-700 shrink-0 transition-all">Other</button>
+          </div>
+        </div>
+
+        <!-- 5. 2-Column Tool Grid -->
+        <div id="tools-grid" class="px-3.5 grid grid-cols-2 gap-2.5"></div>
+
+        <!-- Empty Search State -->
+        <div id="no-results-box" class="hidden px-6 py-10 text-center">
+          <p class="text-sm font-bold text-slate-800 dark:text-slate-200">No matching tool found</p>
+          <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Try searching "AI Image", "Chat", "PDF", or "Watermark"</p>
+          <button onclick="resetFilters()" class="mt-3 px-4 py-2 rounded-xl skin-bg text-white text-xs font-bold">Show All Tools</button>
+        </div>
+      </section>
+      <aside class="display-ad" data-display-ad="rectangle" aria-label="Advertisement" hidden></aside>
+      <footer class="mx-3.5 mb-4 rounded-2xl bg-white px-4 py-3 text-center text-xs text-slate-500 dark:bg-slate-800 dark:text-slate-400">
+        <p class="font-bold text-slate-700 dark:text-slate-200">All Media Tools</p>
+        <p class="mt-1">Free online image, PDF, video, and file tools.</p>
+      </footer>
+    </main>
+
+
+    <!-- 6. Slide-Up Bottom Sheet Tool Drawer -->
+    <div id="drawer-backdrop" onclick="closeToolDrawer()" class="hidden pointer-events-none absolute inset-0 bg-slate-950/65 backdrop-blur-[2px] z-30 transition-opacity duration-300"></div>
+
+    <div id="tool-drawer" role="dialog" aria-labelledby="drawer-title" class="drawer-closed pointer-events-none absolute inset-x-0 bottom-0 max-h-[88%] overflow-y-auto no-scrollbar bg-white dark:bg-slate-900 rounded-t-3xl p-5 shadow-2xl border-t border-slate-200 dark:border-slate-800 z-40 transform translate-y-full transition-transform duration-300 ease-out">
+      <div class="w-10 h-1 rounded-full bg-slate-300 dark:bg-slate-700 mx-auto mb-3.5"></div>
+
+      <div class="flex items-start justify-between gap-3 mb-3">
+        <div class="flex items-center gap-3">
+          <div id="drawer-icon-box" class="w-11 h-11 rounded-2xl flex items-center justify-center shrink-0"></div>
+          <div>
+            <span id="drawer-cat-badge" class="inline-block px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wide mb-0.5">Category</span>
+            <h3 id="drawer-title" class="text-base font-extrabold text-slate-900 dark:text-white leading-tight">Tool Title</h3>
+          </div>
+        </div>
+        <button type="button" data-drawer-close aria-label="Close Drawer" class="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 flex items-center justify-center hover:bg-slate-200 dark:hover:bg-slate-700 shrink-0">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+
+      <div id="drawer-dynamic-body" class="mt-2"></div>
+    </div>
+
+    <!-- Custom Toast Notification -->
+    <div id="app-toast" class="hidden absolute top-16 left-1/2 -translate-x-1/2 bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-4 py-2 rounded-full text-xs font-bold shadow-xl z-50 whitespace-nowrap transition-all">
+      Ready
+    </div>
+  </div>
+
+  <script src="config.js"></script>
+  <script src="ads-config.js"></script>
+  <script src="ads.js?v=2"></script>
+  <script src="app.js"></script>
+  <script>
+    window.addEventListener("DOMContentLoaded", function () {
+      if (!window.__ALLMEDIA_BOOTED__) {
+        var grid = document.getElementById("tools-grid");
+        if (grid && !grid.innerHTML.trim()) {
+          grid.innerHTML = '<div style="grid-column:1/-1;padding:16px;border-radius:14px;background:#fef2f2;border:1px solid #fecaca;color:#b91c1c;font-size:12px;font-weight:700;">app.js did not load. Keep index.html, style.css, and app.js in the same folder (or deploy together on Cloudflare Pages / localhost).</div>';
+        }
+      }
+    });
+  </script>
+
+<div id="verification-overlay" hidden role="dialog" aria-modal="true" aria-labelledby="verification-title" style="position:fixed;inset:0;z-index:99999;background:linear-gradient(135deg,#0f172a 0%,#1e3a5f 100%);align-items:center;justify-content:center;padding:24px;">
+  <div style="background:#fff;border-radius:24px;padding:32px 24px;max-width:420px;width:100%;text-align:center;box-shadow:0 25px 60px rgba(0,0,0,.5);">
+    <div style="width:64px;height:64px;background:linear-gradient(135deg,#2563eb,#0b9275);border-radius:18px;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;color:white;font-size:30px;">✓</div>
+    <h2 id="verification-title" style="font-family:Inter,sans-serif;font-size:21px;font-weight:800;color:#0f172a;margin:0 0 8px;">Quick security check</h2>
+    <p style="font-family:Inter,sans-serif;font-size:14px;color:#64748b;margin:0 0 20px;line-height:1.5;">Verify once to open All Media Tools. Your tools and files stay in this browser.</p>
+    <div id="turnstile-widget" style="display:flex;justify-content:center;min-height:65px;margin-bottom:12px;"></div>
+    <p id="verification-status" role="status" aria-live="polite" style="font-family:Inter,sans-serif;font-size:12px;color:#64748b;margin:0;"></p>
+    <p style="font-family:Inter,sans-serif;font-size:11px;color:#94a3b8;margin:14px 0 0;">Protected by Cloudflare Turnstile</p>
+  </div>
+</div>
+<style>#verification-overlay:not([hidden]){display:flex}#verification-overlay[hidden]{display:none}</style>
+<script>
+(function() {
+  var overlay = document.getElementById("verification-overlay");
+  var status = document.getElementById("verification-status");
+  var box = document.getElementById("turnstile-widget");
+  var expiryKey = "amt_verified_until";
+  var widgetId;
+  function validSession() {
+    try { return Number(localStorage.getItem(expiryKey) || 0) > Date.now(); }
+    catch (_) { return false; }
+  }
+  if (!overlay || validSession()) return;
+  overlay.hidden = false;
+  document.body.style.overflow = "hidden";
+  window.onTurnstileLoaded = function() {
+    var sitekey = window.ALLMEDIA_CONFIG && window.ALLMEDIA_CONFIG.turnstileSiteKey;
+    if (!sitekey) { status.textContent = "Verification is not configured yet. Please try again later."; return; }
+    widgetId = turnstile.render(box, {
+      sitekey: sitekey,
+      action: "site_access",
+      theme: "light",
+      callback: async function(token) {
+        status.textContent = "Checking verification…";
+        try {
+          var response = await fetch("/api/captcha/verify", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ token: token })
+          });
+          if (!response.ok) throw new Error("Verification failed. Please try again.");
+          try { localStorage.setItem(expiryKey, String(Date.now() + 12 * 60 * 60 * 1000)); } catch (_) {}
+          overlay.style.opacity = "0";
+          overlay.style.transition = "opacity .25s ease";
+          setTimeout(function(){ overlay.hidden = true; document.body.style.overflow = ""; }, 260);
+        } catch (error) {
+          status.textContent = error.message || "Verification failed. Please try again.";
+          if (window.turnstile && widgetId !== undefined) turnstile.reset(widgetId);
+        }
+      },
+      "error-callback": function() { status.textContent = "Verification did not load. Check your connection and reload."; },
+      "expired-callback": function() { status.textContent = "Verification expired. Please complete it again."; }
+    });
+  };
+})();
+</script>
+<script src="https://challenges.cloudflare.com/turnstile/v0/api.js?onload=onTurnstileLoaded&amp;render=explicit" async defer></script>
+
+</body>
+</html>
+<!DOCTYPE html>
+<html lang="en" class="light">
+<head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>All Media Tools - PDF Image converter - MP4 to MP3 &amp; Free Online All Video Downloader</title>
