@@ -61,6 +61,32 @@ def _check_rate_limit(store_min, store_day, ip, limit_min, limit_day, label):
         store_min[ip].append(now)
         store_day[ip].append(now)
 
+# ---------------------------------------------------------------------------
+# Per-IP rate limiting (prevents runaway API bills)
+# ---------------------------------------------------------------------------
+_rate_lock = threading.Lock()
+_ip_image_minute: dict = collections.defaultdict(list)
+_ip_image_day:    dict = collections.defaultdict(list)
+_ip_chat_minute:  dict = collections.defaultdict(list)
+_ip_chat_day:     dict = collections.defaultdict(list)
+
+IMAGE_LIMIT_MINUTE = 5
+IMAGE_LIMIT_DAY    = 20
+CHAT_LIMIT_MINUTE  = 10
+CHAT_LIMIT_DAY     = 50
+
+def _check_rate_limit(store_min, store_day, ip, limit_min, limit_day, label):
+    now = time.time()
+    with _rate_lock:
+        store_min[ip] = [t for t in store_min[ip] if now - t < 60]
+        store_day[ip] = [t for t in store_day[ip] if now - t < 86400]
+        if len(store_min[ip]) >= limit_min:
+            raise HTTPException(429, f"{label} rate limit: too many requests this minute.")
+        if len(store_day[ip]) >= limit_day:
+            raise HTTPException(429, f"{label} rate limit: daily limit reached. Try again tomorrow.")
+        store_min[ip].append(now)
+        store_day[ip].append(now)
+
 app = FastAPI(
     title="All Media Tools API",
     version="4.0.0",
