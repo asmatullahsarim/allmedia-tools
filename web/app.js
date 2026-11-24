@@ -85,6 +85,7 @@ const BACKEND_URL = "";
     { name: "Free AI Chat Assistant", category: "ai", engine: "client_ai_chat", badge: "FREE AI" },
     { name: "Remove Background", category: "ai", engine: "api_bg", action: "remove", ad: true, badge: "u2netp" },
     { name: "Image to Text (OCR)", category: "ai", engine: "api_ocr", badge: "Tesseract" },
+    { name: "AI Image Upscaler", category: "ai", engine: "api_upscale_ai", badge: "FSRCNN" },
     { name: "Remove Watermark", category: "ai", engine: "api_watermark", ad: true, badge: "OpenCV" },
     { name: "Cleanup Picture", category: "ai", engine: "api_watermark", ad: true, badge: "Brush" },
     { name: "Remove Objects", category: "ai", engine: "api_watermark", ad: true, badge: "Inpaint" },
@@ -116,7 +117,7 @@ const BACKEND_URL = "";
     { name: "Remove Text from Photo", category: "image", engine: "api_watermark", ad: true },
     { name: "Compress Image", category: "image", engine: "api_image", action: "compress" },
     { name: "Resize Image", category: "image", engine: "api_image", action: "resize" },
-    { name: "Enlarge Image", category: "image", engine: "api_image", action: "upscale", badge: "Basic" },
+    { name: "Enlarge Image", category: "image", engine: "api_upscale_ai", badge: "FSRCNN" },
     { name: "Crop Image", category: "image", engine: "client_canvas", op: "crop" },
     { name: "Make Round Image", category: "image", engine: "client_canvas", op: "round" },
     { name: "Profile Photo Maker", category: "image", engine: "client_canvas", op: "profile" },
@@ -570,7 +571,8 @@ const BACKEND_URL = "";
     "Free AI Chat Assistant": "Draft, translate, or ask a question.",
     "Free AI Image Generator": "Generate an image from a prompt.",
     "Remove Background": "Make the background transparent.",
-    "Image to Text (OCR)": "Extract text from any image using AI — perfect for receipts, screenshots, and scanned documents.",
+    "AI Image Upscaler": "Enhance image resolution with AI — 2× or 4× upscaling using neural networks for crisp, sharp results.",
+      "Image to Text (OCR)": "Extract text from any image using AI — perfect for receipts, screenshots, and scanned documents.",
     "Compress Video": "Make a video file smaller.",
     "Trim Video": "Keep a selected part of a video.",
     "Split PDF": "Save selected pages separately.",
@@ -944,6 +946,9 @@ const BACKEND_URL = "";
         break;
       case "api_ocr":
         mountOcrTool(bodyEl, tool);
+        break;
+      case "api_upscale_ai":
+        mountUpscaleAiTool(bodyEl, tool);
         break;
       case "api_watermark":
         mountWatermarkCanvasTool(bodyEl, tool);
@@ -1979,6 +1984,66 @@ const BACKEND_URL = "";
         }
       }, (msg) => { out.innerHTML = errorBoxHtml(msg); });
     });
+  }
+
+
+  function mountUpscaleAiTool(bodyEl, tool) {
+    bodyEl.innerHTML = `<div class="space-y-4">
+      <div class="upload-zone rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800/50 p-8 text-center cursor-pointer hover:border-blue-400 transition-colors" id="upscale-drop">
+        <div class="text-4xl mb-3">🔍</div>
+        <p class="font-semibold text-slate-700 dark:text-slate-200 mb-1">Drop image here or click to upload</p>
+        <p class="text-sm text-slate-500 dark:text-slate-400">JPG, PNG, WEBP — max 10 MB</p>
+        <input id="upscale-file" type="file" accept="image/*" class="hidden" />
+      </div>
+      <div class="flex items-center gap-3">
+        <span class="text-sm font-medium text-slate-600 dark:text-slate-300">Upscale factor:</span>
+        <label class="flex items-center gap-1.5 cursor-pointer">
+          <input type="radio" name="upscale-factor" value="2" checked class="accent-blue-500" />
+          <span class="text-sm">2× (faster)</span>
+        </label>
+        <label class="flex items-center gap-1.5 cursor-pointer">
+          <input type="radio" name="upscale-factor" value="4" class="accent-blue-500" />
+          <span class="text-sm">4× (best quality)</span>
+        </label>
+      </div>
+      <div id="upscale-out"></div>
+    </div>`;
+
+    const dropZone = bodyEl.querySelector("#upscale-drop");
+    const fileInput = bodyEl.querySelector("#upscale-file");
+    const out = bodyEl.querySelector("#upscale-out");
+
+    dropZone.addEventListener("click", () => fileInput.click());
+    dropZone.addEventListener("dragover", e => { e.preventDefault(); dropZone.classList.add("border-blue-400"); });
+    dropZone.addEventListener("dragleave", () => dropZone.classList.remove("border-blue-400"));
+    dropZone.addEventListener("drop", e => { e.preventDefault(); dropZone.classList.remove("border-blue-400"); if (e.dataTransfer.files[0]) processUpscale(e.dataTransfer.files[0]); });
+    fileInput.addEventListener("change", () => { if (fileInput.files[0]) processUpscale(fileInput.files[0]); });
+
+    async function processUpscale(file) {
+      const scale = bodyEl.querySelector("input[name='upscale-factor']:checked")?.value || "2";
+      out.innerHTML = loadingSpinnerHtml(`Upscaling ${scale}x with AI… this may take 15–30 s on cold start`);
+      try {
+        const form = new FormData();
+        form.append("file", file);
+        form.append("scale", scale);
+        const res = await fetch(apiEndpoint("/api/upscale-ai"), { method: "POST", body: form, signal: AbortSignal.timeout(90000) });
+        if (!res.ok) { const e = await res.json().catch(() => ({})); out.innerHTML = `<p class="text-red-500 text-sm">${e.detail || "Upscaling failed."}</p>`; return; }
+        const blob = await res.blob();
+        const outW = res.headers.get("X-Output-Width") || "";
+        const outH = res.headers.get("X-Output-Height") || "";
+        const url = URL.createObjectURL(blob);
+        const ext = blob.type === "image/png" ? "png" : "jpg";
+        out.innerHTML = `<div class="space-y-3">
+          <img src="${url}" class="max-w-full rounded-xl border border-slate-200 dark:border-slate-700 shadow" />
+          ${outW ? `<p class="text-xs text-slate-500 dark:text-slate-400 text-center">Output: ${outW} × ${outH} px</p>` : ""}
+          <a href="${url}" download="upscaled_${scale}x.${ext}" class="btn-primary flex items-center justify-center gap-2 w-full py-2.5 rounded-xl font-semibold text-white bg-blue-600 hover:bg-blue-700 transition-colors no-underline">
+            ⬇️ Download ${scale}× Upscaled Image
+          </a>
+        </div>`;
+      } catch (err) {
+        out.innerHTML = `<p class="text-red-500 text-sm">${err.name === "TimeoutError" ? "Request timed out. Try a smaller image or 2× scale." : "Something went wrong. Please try again."}</p>`;
+      }
+    }
   }
 
   function mountOcrTool(bodyEl, tool) {

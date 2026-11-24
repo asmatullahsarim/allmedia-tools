@@ -1756,3 +1756,105 @@ async def ocr_image(request: Request, file: UploadFile = File(None)):
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"OCR failed: {exc}")
 
+
+# ==============================================================================
+# 10. AI IMAGE UPSCALER (/api/upscale-ai - FSRCNN)
+# ==============================================================================
+
+# Lazy-load FSRCNN models (tiny ~10 KB each, low RAM)
+_sr_models: dict = {}
+_SR_MODEL_DIR = os.path.join(os.path.dirname(__file__), "models")
+
+def _get_sr_model(scale: int):
+    """Return a cached cv2 DNN super-res model for the requested scale (2 or 4)."""
+    if scale not in _sr_models:
+        import cv2
+        model_path = os.path.join(_SR_MODEL_DIR, f"FSRCNN-small_x{scale}.pb")
+        if not os.path.exists(model_path):
+            raise FileNotFoundError(f"Model file not found: {model_path}")
+        sr = cv2.dnn_superres.DnnSuperResImpl_create()
+        sr.readModel(model_path)
+        sr.setModel("fsrcnn", scale)
+        _sr_models[scale] = sr
+    return _sr_models[scale]
+
+
+@app.post("/api/upscale-ai")
+async def upscale_ai(
+    request: Request,
+    file: UploadFile = File(None),
+    scale: int = Form(2),
+):
+    """AI-powered image upscaling using FSRCNN (2x or 4x)."""
+    session = PublicSession(request)
+    raw = await read_upload(file, session, max_bytes=10 * 1024 * 1024)
+    if not raw or len(raw) > 10 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="Upload an image under 10 MB.")
+
+    scale = int(scale)
+    if scale not in (2, 4):
+        raise HTTPException(status_code=400, detail="Scale must be 2 or 4.")
+
+    try:
+        import cv2
+        import numpy as np
+
+        # Decode image
+        pil_img = Image.open(io.BytesIO(raw))
+        orig_format = pil_img.format or "PNG"
+        if pil_img.mode == "RGBA":
+            has_alpha = True
+            alpha = pil_img.split()[3]
+            pil_rgb = pil_img.convert("RGB")
+        else:
+            has_alpha = False
+            pil_rgb = pil_img.convert("RGB")
+
+        # Cap input size to avoid OOM: max 800px on longest edge for 4x, 1200 for 2x
+        max_px = 800 if scale == 4 else 1200
+        w, h = pil_rgb.size
+        if max(w, h) > max_px:
+            ratio = max_px / max(w, h)
+            pil_rgb = pil_rgb.resize((int(w * ratio), int(h * ratio)), Image.Resampling.LANCZOS)
+            if has_alpha:
+                alpha = alpha.resize((int(w * ratio), int(h * ratio)), Image.Resampling.LANCZOS)
+
+        # Convert PIL → OpenCV BGR
+        cv_img = cv2.cvtColor(np.array(pil_rgb), cv2.COLOR_RGB2BGR)
+
+        # Run FSRCNN upscaling
+        sr = _get_sr_model(scale)
+        upscaled_cv = sr.upsample(cv_img)
+
+        # Convert back to PIL
+        upscaled_rgb = cv2.cvtColor(upscaled_cv, cv2.COLOR_BGR2RGB)
+        result_img = Image.fromarray(upscaled_rgb)
+
+        # Re-attach upscaled alpha if original had transparency
+        if has_alpha:
+            new_w, new_h = result_img.size
+            alpha_up = alpha.resize((new_w, new_h), Image.Resampling.LANCZOS)
+            result_img = result_img.convert("RGBA")
+            result_img.putalpha(alpha_up)
+
+        # Encode output
+        out_buf = io.BytesIO()
+        save_fmt = "PNG" if has_alpha else "JPEG"
+        save_kwargs = {} if has_alpha else {"quality": 90, "optimize": True}
+        result_img.save(out_buf, format=save_fmt, **save_kwargs)
+        out_buf.seek(0)
+
+        mime = "image/png" if has_alpha else "image/jpeg"
+        ext = "png" if has_alpha else "jpg"
+        out_w, out_h = result_img.size
+        headers = {
+            "Content-Disposition": f'attachment; filename="upscaled_{scale}x.{ext}"',
+            "X-Output-Width": str(out_w),
+            "X-Output-Height": str(out_h),
+        }
+        return Response(content=out_buf.read(), media_type=mime, headers=headers)
+
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=503, detail=str(exc))
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Upscaling failed: {exc}")
