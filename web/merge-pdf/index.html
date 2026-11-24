@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en" class="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Merge PDF Files Online | All Media Tools</title>
+  <meta name="description" content="Merge up to 25 PDF files into one document. The combined upload limit is 100 MB, and pages follow the order you select." />
+  <meta property="og:title" content="Merge PDF Files Online | All Media Tools" />
+  <meta property="og:description" content="Merge up to 25 PDF files into one document. The combined upload limit is 100 MB, and pages follow the order you select." />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="All Media Tools" />
+  <!-- Public SEO metadata -->
+  <link rel="canonical" href="https://allmediatool.online/merge-pdf/" />
+  <meta property="og:url" content="https://allmediatool.online/merge-pdf/" />
+  <!-- End public SEO metadata -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Inter', 'sans-serif'] }
+        }
+      }
+    };
+  </script>
+  <!-- Client-Side Processing Libraries -->
+  <link rel="stylesheet" href="../style.css" />
+</head>
+<body data-skin="ocean" class="bg-slate-200 dark:bg-slate-950 min-h-screen flex flex-col items-center justify-center sm:py-5 font-sans antialiased transition-colors duration-300">
+
+  <!-- Desktop Helper Badge -->
+  <div class="hidden sm:flex items-center gap-2 mb-2.5 px-3.5 py-1 rounded-full bg-white/90 dark:bg-slate-900/90 text-slate-700 dark:text-slate-300 text-xs font-semibold shadow-sm border border-slate-300/70 dark:border-slate-800">
+    <span class="w-2 h-2 rounded-full skin-bg animate-pulse"></span>
+    All Media Tools • <span id="desktop-tool-summary">83 listed tools</span>
+  </div>
+
+  <!-- Mobile-First App Container -->
+  <div id="app-shell" class="relative w-full max-w-[480px] h-[100dvh] sm:h-[860px] sm:max-h-[93vh] bg-[#F8FAFC] dark:bg-[#0B1120] sm:rounded-[38px] sm:border-[8px] sm:border-slate-800 shadow-2xl overflow-hidden flex flex-col transition-colors duration-300">
+
+    <!-- 1. Top Sticky Header with Skin Switcher, API Server Button & Dark/Light Toggle -->
+    <header class="site-header bg-white/95 dark:bg-slate-900/95 backdrop-blur-md px-4 py-2.5 flex items-center justify-between border-b border-slate-200/75 dark:border-slate-800 z-30 shrink-0 transition-colors">
+      <div class="site-brand flex items-center gap-2.5">
+        <div>
+          <a href="../" class="site-name" aria-label="All Media Tools home"><img class="site-wordmark" src="../all-media-tools-logo.webp" width="660" height="105" alt="All Media Tools"></a>
+          <p class="site-tagline font-medium text-slate-500 dark:text-slate-400 mt-0.5">Free Tools • AI &amp; Media</p>
+          <p id="api-health-status" data-state="checking" role="status" aria-live="polite" class="mt-1 flex items-center gap-1.5 text-[10px] font-medium text-slate-500 dark:text-slate-400">
+            <span id="api-health-dot" aria-hidden="true" class="h-1.5 w-1.5 rounded-full bg-slate-400"></span>
+            <span id="api-health-label">Checking server tools…</span>
+          </p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-1.5 relative">
+        <!-- Skin Selector Button -->
+        <button id="skin-menu-btn" aria-label="Change UI Skin" class="h-9 px-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 flex items-center gap-1.5 hover:bg-slate-200 dark:hover:bg-slate-700 active:scale-95 transition-all text-xs font-bold">
+          <span id="current-skin-dot" class="w-3 h-3 rounded-full skin-bg ring-2 ring-white dark:ring-slate-900"></span>
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.1" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01"/>
+          </svg>
+          <span class="hidden sm:inline">Skins</span>
+        </button>
+
+        <!-- Dark / Light Toggle -->
+        <button id="theme-toggle-btn" aria-label="Toggle Dark Mode" class="w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 flex items-center justify-center hover:bg-slate-200 dark:hover:bg-slate-700 active:scale-95 transition-all">
+          <svg class="w-4 h-4 hidden dark:block text-amber-400" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/>
+          </svg>
+          <svg class="w-4 h-4 block dark:hidden text-slate-700" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>
+          </svg>
+        </button>
+
+        <!-- 5 UI Skins Popover -->
+        <div id="skin-popover" class="hidden absolute right-0 top-11 w-52 bg-white dark:bg-slate-800 rounded-2xl p-2.5 shadow-xl border border-slate-200 dark:border-slate-700 z-50">
+          <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400 px-2 pb-1.5">Select App Skin</p>
+          <div class="space-y-1">
+            <button onclick="setAppSkin('ocean', 'Ocean Blue')" class="skin-option w-full flex items-center justify-between px-2.5 py-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-700/70 text-xs font-semibold text-slate-800 dark:text-slate-100">
+              <span class="flex items-center gap-2"><span class="w-3.5 h-3.5 rounded-full bg-[#2563EB]"></span> Ocean Blue</span>
+              <span class="skin-check text-[10px] font-bold text-blue-600" data-check="ocean">Active</span>
+            </button>
+            <button onclick="setAppSkin('emerald', 'Emerald Mint')" class="skin-option w-full flex items-center justify-between px-2.5 py-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-700/70 text-xs font-semibold text-slate-800 dark:text-slate-100">
+              <span class="flex items-center gap-2"><span class="w-3.5 h-3.5 rounded-full bg-[#059669]"></span> Emerald Mint</span>
+              <span class="skin-check hidden text-[10px] font-bold text-emerald-600" data-check="emerald">Active</span>
+            </button>
+            <button onclick="setAppSkin('purple', 'Royal Purple')" class="skin-option w-full flex items-center justify-between px-2.5 py-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-700/70 text-xs font-semibold text-slate-800 dark:text-slate-100">
+              <span class="flex items-center gap-2"><span class="w-3.5 h-3.5 rounded-full bg-[#7C3AED]"></span> Royal Purple</span>
+              <span class="skin-check hidden text-[10px] font-bold text-purple-600" data-check="purple">Active</span>
+            </button>
+            <button onclick="setAppSkin('sunset', 'Sunset Coral')" class="skin-option w-full flex items-center justify-between px-2.5 py-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-700/70 text-xs font-semibold text-slate-800 dark:text-slate-100">
+              <span class="flex items-center gap-2"><span class="w-3.5 h-3.5 rounded-full bg-[#E11D48]"></span> Sunset Coral</span>
+              <span class="skin-check hidden text-[10px] font-bold text-rose-600" data-check="sunset">Active</span>
+            </button>
+            <button onclick="setAppSkin('gold', 'Gold Amber')" class="skin-option w-full flex items-center justify-between px-2.5 py-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-700/70 text-xs font-semibold text-slate-800 dark:text-slate-100">
+              <span class="flex items-center gap-2"><span class="w-3.5 h-3.5 rounded-full bg-[#D97706]"></span> Gold Amber</span>
+              <span class="skin-check hidden text-[10px] font-bold text-amber-600" data-check="gold">Active</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Scrollable Main Body -->
+    <main id="main-scroll-area" class="flex-1 overflow-y-auto no-scrollbar pb-20">
+
+      <aside class="display-ad" data-display-ad="leaderboard" aria-label="Advertisement" hidden></aside>
+
+      <!-- Compact Hero + Dual Smart Bars -->
+      <section class="px-3.5 pt-3 pb-2.5">
+        <section dir="ltr" class="mb-4 rounded-2xl bg-white p-4 text-slate-900 dark:bg-slate-800 dark:text-white">
+          <h1 class="text-xl font-extrabold">Merge PDF Files Online</h1>
+          <form data-seo-tool="merge-pdf" data-action="merge" class="mt-3 space-y-3" aria-label="Merge PDF upload">
+            <label class="flex min-h-24 cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-slate-300 bg-slate-50 p-4 text-center dark:border-slate-700 dark:bg-slate-900/50">
+              <span class="text-sm font-bold">Choose files</span>
+              <span data-seo-file-label class="mt-1 text-xs text-slate-500">PDF · 25 MB per file; up to 25 files and 100 MB combined</span>
+              <input data-seo-file type="file" accept=".pdf,application/pdf" multiple class="sr-only" required />
+            </label>
+            
+            
+            
+            <button type="submit" data-seo-submit class="w-full rounded-xl skin-bg px-4 py-3 text-sm font-bold text-white">Merge PDF</button>
+            <div data-seo-status role="status" aria-live="polite"></div>
+          </form>
+          <p class="mt-3 text-sm text-slate-600 dark:text-slate-300">Merge up to 25 PDF files into one document. The combined upload limit is 100 MB, and pages follow the order you select.</p>
+          <p class="mt-2 text-xs text-slate-500 dark:text-slate-400"><strong>Supported formats:</strong> PDF. <strong>File limit:</strong> 25 MB per file; up to 25 files and 100 MB combined.</p>
+          <h2 class="mt-4 text-base font-bold">How to use this tool</h2>
+          <ol class="mt-2 list-decimal space-y-1 ps-5 text-sm text-slate-600 dark:text-slate-300"><li>Choose the PDFs in the order you want them combined.</li><li>Run the PDF merger.</li><li>Download the combined document and check the page order.</li></ol>
+        </section>
+      <div class="link-downloader" aria-label="Download from a link">
+        <!-- 2A. Smart Link Paste Bar (Paste button at the far right end of bar) -->
+        <div class="bg-white dark:bg-slate-800/95 rounded-2xl p-1.5 shadow-sm border border-slate-200/90 dark:border-slate-700 skin-border-focus transition-all mb-2">
+          <div id="smart-link-row" class="flex items-center gap-1.5 flex-nowrap">
+            <div class="pl-2 skin-text shrink-0">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.3" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/>
+              </svg>
+            </div>
+            <input id="smart-link-input" type="url" aria-label="Video or image link" placeholder="Paste a video or image link" class="flex-1 min-w-0 bg-transparent text-xs font-medium text-slate-800 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 py-1.5 focus:outline-none" />
+            <button id="smart-download-btn" type="button" class="px-3 py-1.5 rounded-xl skin-bg text-white text-xs font-bold skin-shadow shrink-0 active:scale-95 transition-all">
+              Download
+            </button>
+            <button id="clipboard-paste-btn" type="button" title="Paste from Clipboard" class="px-2.5 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 text-[11px] font-bold flex items-center gap-1 shrink-0 active:scale-95 transition-all">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+              </svg>
+              <span>Paste</span>
+            </button>
+          </div>
+        </div>
+
+      </div>
+
+      <nav class="category-navigation" aria-label="Tool categories">
+        <button type="button" data-category-link="image" aria-pressed="false">Image</button>
+        <button type="button" data-category-link="pdf" aria-pressed="false">PDF</button>
+        <button type="button" data-category-link="video" aria-pressed="false">Video</button>
+        <button type="button" data-category-link="converter" aria-pressed="false">Converters</button>
+        <button type="button" data-category-link="ai" aria-pressed="false">AI</button>
+        <button type="button" data-category-link="other" aria-pressed="false">Other</button>
+      </nav>
+
+        <!-- 2B. Compact Live Tool Search Bar -->
+        <div class="bg-white dark:bg-slate-800/95 rounded-2xl px-2.5 py-1 shadow-sm border border-slate-200/80 dark:border-slate-700 skin-border-focus flex items-center gap-2 transition-all">
+          <svg class="w-4 h-4 text-slate-400 shrink-0" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+          </svg>
+          <input id="live-search-input" type="search" aria-label="Search tools" placeholder="Search tools (AI, image, PDF, video...)" class="flex-1 bg-transparent text-xs font-medium text-slate-800 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 py-1.5 focus:outline-none" />
+          <button id="clear-search-btn" type="button" aria-label="Clear search" class="hidden text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+          </button>
+        </div>
+      </section>
+
+      <nav dir="ltr" aria-label="Related tools" class="mx-3.5 my-4 rounded-2xl bg-white p-4 dark:bg-slate-800">
+        <h2 class="mb-2 text-base font-bold text-slate-900 dark:text-white">Related tools</h2>
+        <ul class="grid grid-cols-2 gap-2 text-sm">
+<li><a class="skin-text underline underline-offset-2" href="../jpg-to-pdf/">JPG to PDF</a></li>
+          <li><a class="skin-text underline underline-offset-2" href="../compress-image/">Compress Image</a></li>
+
+        </ul>
+      </nav>
+      <aside class="display-ad display-ad--desktop" data-display-ad="leaderboard" aria-label="Advertisement" hidden></aside>
+
+
+      <!-- 4. Tools Section & Category Filter Pills -->
+      <section id="tools-section-anchor" class="pt-0.5">
+        <div class="px-3.5 flex items-center justify-between mb-2">
+          <div>
+            <h2 class="text-sm font-extrabold text-slate-900 dark:text-white">Our Most Popular Tools</h2>
+            <p class="text-[10.5px] text-slate-500 dark:text-slate-400">Choose a tool to process your file or create something new.</p>
+          </div>
+          <span id="showing-count-badge" class="px-2 py-0.5 rounded-full skin-soft-bg skin-text text-[10px] font-bold">85 tools</span>
+        </div>
+
+        <div class="pl-3.5 mb-3">
+          <div id="filter-pills-row" class="flex items-center gap-1.5 overflow-x-auto no-scrollbar pr-3.5 py-0.5">
+            <button type="button" onclick="selectCategoryFilter('all', false)" data-filter="all" class="filter-pill px-3 py-1.5 rounded-xl text-xs font-bold skin-bg text-white skin-shadow shrink-0 transition-all">All Tools</button>
+            <button type="button" onclick="selectCategoryFilter('ai', false)" data-filter="ai" class="filter-pill px-3 py-1.5 rounded-xl text-xs font-semibold bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200/80 dark:border-slate-700 shrink-0 transition-all">✨ AI Free</button>
+            <button type="button" onclick="selectCategoryFilter('video', false)" data-filter="video" class="filter-pill px-3 py-1.5 rounded-xl text-xs font-semibold bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200/80 dark:border-slate-700 shrink-0 transition-all">Video</button>
+            <button type="button" onclick="selectCategoryFilter('image', false)" data-filter="image" class="filter-pill px-3 py-1.5 rounded-xl text-xs font-semibold bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200/80 dark:border-slate-700 shrink-0 transition-all">Image</button>
+            <button type="button" onclick="selectCategoryFilter('pdf', false)" data-filter="pdf" class="filter-pill px-3 py-1.5 rounded-xl text-xs font-semibold bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200/80 dark:border-slate-700 shrink-0 transition-all">PDF</button>
+            <button type="button" onclick="selectCategoryFilter('converter', false)" data-filter="converter" class="filter-pill px-3 py-1.5 rounded-xl text-xs font-semibold bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200/80 dark:border-slate-700 shrink-0 transition-all">Converter</button>
+            <button type="button" onclick="selectCategoryFilter('other', false)" data-filter="other" class="filter-pill px-3 py-1.5 rounded-xl text-xs font-semibold bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200/80 dark:border-slate-700 shrink-0 transition-all">Other</button>
+          </div>
+        </div>
+
+        <!-- 5. 2-Column Tool Grid -->
+        <div id="tools-grid" class="px-3.5 grid grid-cols-2 gap-2.5"></div>
+
+        <!-- Empty Search State -->
+        <div id="no-results-box" class="hidden px-6 py-10 text-center">
+          <p class="text-sm font-bold text-slate-800 dark:text-slate-200">No matching tool found</p>
+          <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Try searching "AI Image", "Chat", "PDF", or "Watermark"</p>
+          <button onclick="resetFilters()" class="mt-3 px-4 py-2 rounded-xl skin-bg text-white text-xs font-bold">Show All Tools</button>
+        </div>
+      </section>
+      <aside class="display-ad" data-display-ad="rectangle" aria-label="Advertisement" hidden></aside>
+      <footer class="mx-3.5 mb-4 rounded-2xl bg-white px-4 py-3 text-center text-xs text-slate-500 dark:bg-slate-800 dark:text-slate-400">
+        <p class="font-bold text-slate-700 dark:text-slate-200">All Media Tools</p>
+        <p class="mt-1">Free online image, PDF, video, and file tools.</p>
+      </footer>
+    </main>
+
+
+    <!-- 6. Slide-Up Bottom Sheet Tool Drawer -->
+    <div id="drawer-backdrop" onclick="closeToolDrawer()" class="hidden pointer-events-none absolute inset-0 bg-slate-950/65 backdrop-blur-[2px] z-30 transition-opacity duration-300"></div>
+
+    <div id="tool-drawer" role="dialog" aria-labelledby="drawer-title" class="drawer-closed pointer-events-none absolute inset-x-0 bottom-0 max-h-[88%] overflow-y-auto no-scrollbar bg-white dark:bg-slate-900 rounded-t-3xl p-5 shadow-2xl border-t border-slate-200 dark:border-slate-800 z-40 transform translate-y-full transition-transform duration-300 ease-out">
+      <div class="w-10 h-1 rounded-full bg-slate-300 dark:bg-slate-700 mx-auto mb-3.5"></div>
+
+      <div class="flex items-start justify-between gap-3 mb-3">
+        <div class="flex items-center gap-3">
+          <div id="drawer-icon-box" class="w-11 h-11 rounded-2xl flex items-center justify-center shrink-0"></div>
+          <div>
+            <span id="drawer-cat-badge" class="inline-block px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wide mb-0.5">Category</span>
+            <h3 id="drawer-title" class="text-base font-extrabold text-slate-900 dark:text-white leading-tight">Tool Title</h3>
+          </div>
+        </div>
+        <button type="button" data-drawer-close aria-label="Close Drawer" class="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 flex items-center justify-center hover:bg-slate-200 dark:hover:bg-slate-700 shrink-0">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+
+      <div id="drawer-dynamic-body" class="mt-2"></div>
+    </div>
+
+    <!-- Custom Toast Notification -->
+    <div id="app-toast" class="hidden absolute top-16 left-1/2 -translate-x-1/2 bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-4 py-2 rounded-full text-xs font-bold shadow-xl z-50 whitespace-nowrap transition-all">
+      Ready
+    </div>
+  </div>
+
+  <script src="../config.js"></script>
+  <script src="../ads-config.js"></script>
+  <script src="../ads.js?v=2"></script>
+  <script src="../app.js"></script>
+  <script>
+    window.addEventListener("DOMContentLoaded", function () {
+      if (!window.__ALLMEDIA_BOOTED__) {
+        var grid = document.getElementById("tools-grid");
+        if (grid && !grid.innerHTML.trim()) {
+          grid.innerHTML = '<div style="grid-column:1/-1;padding:16px;border-radius:14px;background:#fef2f2;border:1px solid #fecaca;color:#b91c1c;font-size:12px;font-weight:700;">app.js did not load. Keep index.html, style.css, and app.js in the same folder (or deploy together on Cloudflare Pages / localhost).</div>';
+        }
+      }
+    });
+  </script>
+</body>
+</html>
