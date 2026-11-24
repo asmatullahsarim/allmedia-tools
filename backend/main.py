@@ -1728,3 +1728,31 @@ if os.path.isdir(_web_dir):
 
     app.mount("/tools", StaticFiles(directory=_web_dir, html=True), name="tools")
     app.mount("/", StaticFiles(directory=_web_dir, html=True), name="homepage")
+
+# ==============================================================================
+# 9. OCR - IMAGE TO TEXT (/api/ocr - Tesseract)
+# ==============================================================================
+
+@app.post("/api/ocr")
+async def ocr_image(request: Request, file: UploadFile = File(None)):
+    """Extract text from an image using Tesseract OCR."""
+    session = PublicSession(request)
+    raw = await read_upload(file, session, max_bytes=20 * 1024 * 1024)
+    if not raw or len(raw) > 20 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="Upload an image under 20 MB.")
+    try:
+        import pytesseract
+        img = Image.open(io.BytesIO(raw))
+        # Convert to RGB for compatibility
+        if img.mode not in ("RGB", "L"):
+            img = img.convert("RGB")
+        text = pytesseract.image_to_string(img, lang="eng")
+        text = text.strip()
+        if not text:
+            return JSONResponse({"text": "", "message": "No text found in this image."})
+        return JSONResponse({"text": text, "char_count": len(text), "word_count": len(text.split())})
+    except ImportError:
+        raise HTTPException(status_code=503, detail="OCR service unavailable (pytesseract not installed).")
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"OCR failed: {exc}")
+

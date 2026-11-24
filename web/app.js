@@ -84,6 +84,7 @@ const BACKEND_URL = "";
     { name: "Free AI Image Generator", category: "ai", engine: "client_ai_image", badge: "FREE AI" },
     { name: "Free AI Chat Assistant", category: "ai", engine: "client_ai_chat", badge: "FREE AI" },
     { name: "Remove Background", category: "ai", engine: "api_bg", action: "remove", ad: true, badge: "u2netp" },
+    { name: "Image to Text (OCR)", category: "ai", engine: "api_ocr", badge: "Tesseract" },
     { name: "Remove Watermark", category: "ai", engine: "api_watermark", ad: true, badge: "OpenCV" },
     { name: "Cleanup Picture", category: "ai", engine: "api_watermark", ad: true, badge: "Brush" },
     { name: "Remove Objects", category: "ai", engine: "api_watermark", ad: true, badge: "Inpaint" },
@@ -569,6 +570,7 @@ const BACKEND_URL = "";
     "Free AI Chat Assistant": "Draft, translate, or ask a question.",
     "Free AI Image Generator": "Generate an image from a prompt.",
     "Remove Background": "Make the background transparent.",
+    "Image to Text (OCR)": "Extract text from any image using AI — perfect for receipts, screenshots, and scanned documents.",
     "Compress Video": "Make a video file smaller.",
     "Trim Video": "Keep a selected part of a video.",
     "Split PDF": "Save selected pages separately.",
@@ -939,6 +941,9 @@ const BACKEND_URL = "";
         break;
       case "api_bg":
         mountBgRemover(bodyEl, tool);
+        break;
+      case "api_ocr":
+        mountOcrTool(bodyEl, tool);
         break;
       case "api_watermark":
         mountWatermarkCanvasTool(bodyEl, tool);
@@ -1974,6 +1979,48 @@ const BACKEND_URL = "";
         }
       }, (msg) => { out.innerHTML = errorBoxHtml(msg); });
     });
+  }
+
+  function mountOcrTool(bodyEl, tool) {
+    bodyEl.innerHTML = `
+      <div class="space-y-3">
+        <div class="upload-zone rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-700 p-5 text-center cursor-pointer hover:border-blue-400 transition-colors" id="ocr-drop">
+          <div class="text-3xl mb-2">📄</div>
+          <p class="text-xs font-semibold text-slate-500 dark:text-slate-400">Drop an image here, or click to upload</p>
+          <p class="text-[10px] text-slate-400 mt-1">JPG, PNG, WebP, HEIC — up to 20 MB</p>
+          <input id="ocr-file" type="file" accept="image/*" class="hidden" />
+        </div>
+        <div id="ocr-out"></div>
+      </div>`;
+    const dropZone = bodyEl.querySelector("#ocr-drop");
+    const fileInput = bodyEl.querySelector("#ocr-file");
+    const out = bodyEl.querySelector("#ocr-out");
+    dropZone.addEventListener("click", () => fileInput.click());
+    dropZone.addEventListener("dragover", (e) => { e.preventDefault(); dropZone.classList.add("border-blue-400"); });
+    dropZone.addEventListener("dragleave", () => dropZone.classList.remove("border-blue-400"));
+    dropZone.addEventListener("drop", (e) => { e.preventDefault(); dropZone.classList.remove("border-blue-400"); if (e.dataTransfer.files[0]) processOcr(e.dataTransfer.files[0]); });
+    fileInput.addEventListener("change", () => { if (fileInput.files[0]) processOcr(fileInput.files[0]); });
+
+    async function processOcr(file) {
+      out.innerHTML = loadingSpinnerHtml("Extracting text… may take 10–20 s on first use.");
+      const form = new FormData();
+      form.append("file", file);
+      try {
+        const res = await fetch(apiEndpoint("/api/ocr"), { method: "POST", body: form, signal: AbortSignal.timeout(60000) });
+        const json = await res.json();
+        if (!res.ok) { out.innerHTML = errorBoxHtml(json.detail || "OCR failed."); return; }
+        if (!json.text) { out.innerHTML = errorBoxHtml(json.message || "No text found in this image."); return; }
+        out.innerHTML = `
+          <div class="rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-4 space-y-3">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold text-slate-700 dark:text-slate-200">Extracted Text</span>
+              <span class="text-[10px] text-slate-400">${json.word_count} words · ${json.char_count} chars</span>
+            </div>
+            <textarea readonly class="w-full text-xs text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-3 h-40 resize-none font-mono leading-relaxed">${escapeHtml(json.text)}</textarea>
+            <button onclick="navigator.clipboard.writeText(${JSON.stringify(json.text)}).then(()=>this.textContent='Copied!').catch(()=>{})" class="w-full py-2.5 rounded-xl skin-bg text-white text-xs font-bold skin-shadow">Copy Text</button>
+          </div>`;
+      } catch(e) { out.innerHTML = errorBoxHtml(e.name === "TimeoutError" ? "OCR timed out. Try a smaller image." : "Network error."); }
+    }
   }
 
   function mountWatermarkCanvasTool(bodyEl, tool) {
