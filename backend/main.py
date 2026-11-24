@@ -240,7 +240,7 @@ def ai_image(payload: AiImageRequest, request: Request):
         response = requests.post(
             f"https://api.cloudflare.com/client/v4/accounts/{account_id}/ai/run/@cf/black-forest-labs/flux-1-schnell",
             headers={"Authorization": f"Bearer {token}"},
-            json={"prompt": payload.prompt, "width": 512, "height": 512, "steps": 4},
+            json={"prompt": payload.prompt, "steps": 4},
             timeout=(5, 90),
             allow_redirects=False,
         )
