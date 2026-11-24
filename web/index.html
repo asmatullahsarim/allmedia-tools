@@ -258,5 +258,65 @@
       }
     });
   </script>
+
+<!-- ===== hCaptcha First-Visit Verification ===== -->
+<div id="captcha-overlay" style="display:none;position:fixed;inset:0;z-index:99999;background:linear-gradient(135deg,#0f172a 0%,#1e3a5f 100%);display:flex;align-items:center;justify-content:center;flex-direction:column;padding:24px;">
+  <div style="background:#fff;border-radius:24px;padding:36px 32px;max-width:380px;width:100%;text-align:center;box-shadow:0 25px 60px rgba(0,0,0,0.5);">
+    <div style="width:64px;height:64px;background:linear-gradient(135deg,#2563eb,#7c3aed);border-radius:16px;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;">
+      <svg width="32" height="32" fill="none" stroke="#fff" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+    </div>
+    <h2 style="font-family:Inter,sans-serif;font-size:20px;font-weight:800;color:#0f172a;margin:0 0 8px;">Verify You're Human</h2>
+    <p style="font-family:Inter,sans-serif;font-size:13px;color:#64748b;margin:0 0 24px;line-height:1.5;">Complete the quick check below to access All Media Tools — free online image, PDF &amp; video tools.</p>
+    <div id="hcaptcha-box" style="display:flex;justify-content:center;margin-bottom:20px;"></div>
+    <p style="font-family:Inter,sans-serif;font-size:11px;color:#94a3b8;margin:0;">Protected by hCaptcha &nbsp;·&nbsp; <a href="https://hcaptcha.com/privacy" target="_blank" style="color:#2563eb;">Privacy</a> &nbsp;·&nbsp; <a href="https://hcaptcha.com/terms" target="_blank" style="color:#2563eb;">Terms</a></p>
+  </div>
+</div>
+
+<script src="https://js.hcaptcha.com/1/api.js" async defer></script>
+<script>
+(function() {
+  var SESSION_KEY = 'amt_captcha_verified';
+  if (sessionStorage.getItem(SESSION_KEY) === '1') return; // already verified this session
+  
+  var overlay = document.getElementById('captcha-overlay');
+  if (!overlay) return;
+  
+  // Show overlay and block scrolling
+  overlay.style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+  
+  // Render hCaptcha when API is ready
+  function renderCaptcha() {
+    if (typeof hcaptcha === 'undefined') {
+      setTimeout(renderCaptcha, 200);
+      return;
+    }
+    hcaptcha.render('hcaptcha-box', {
+      sitekey: '10000000-ffff-ffff-ffff-000000000001', // Test key — replace with your real key from hcaptcha.com (free)
+      theme: 'light',
+      callback: function(token) {
+        if (token) {
+          sessionStorage.setItem(SESSION_KEY, '1');
+          overlay.style.transition = 'opacity 0.4s ease';
+          overlay.style.opacity = '0';
+          setTimeout(function() {
+            overlay.style.display = 'none';
+            document.body.style.overflow = '';
+          }, 400);
+        }
+      }
+    });
+  }
+  
+  // Start rendering when DOM is ready
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', renderCaptcha);
+  } else {
+    renderCaptcha();
+  }
+})();
+</script>
+<!-- ===== End hCaptcha ===== -->
+
 </body>
 </html>
