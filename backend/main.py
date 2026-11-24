@@ -48,8 +48,12 @@ _rate_lock = threading.Lock()
 _ai_rate_state: collections.OrderedDict = collections.OrderedDict()
 _ai_daily_budget = {"day": "", "neurons": 0}
 AI_DAILY_NEURON_BUDGET = 7500
-IMAGE_LIMIT_MINUTE, IMAGE_LIMIT_DAY = 3, 15
-CHAT_LIMIT_MINUTE, CHAT_LIMIT_DAY = 10, 25
+GUEST_IMAGE_LIMIT_MINUTE, GUEST_IMAGE_LIMIT_DAY = 1, 7
+MEMBER_IMAGE_LIMIT_MINUTE, MEMBER_IMAGE_LIMIT_DAY = 3, 15
+GUEST_CHAT_LIMIT_MINUTE, GUEST_CHAT_LIMIT_DAY = 5, 12
+MEMBER_CHAT_LIMIT_MINUTE, MEMBER_CHAT_LIMIT_DAY = 10, 25
+_firebase_app_instance = None
+_firebase_lock = threading.Lock()
 
 
 def _check_rate_limit(ip: str, kind: str, limit_minute: int, limit_day: int, label: str) -> None:
@@ -67,7 +71,8 @@ def _check_rate_limit(ip: str, kind: str, limit_minute: int, limit_day: int, lab
             state["day"], state["day_count"] = day_key, 0
         if state["minute_count"] >= limit_minute:
             raise HTTPException(429, f"{label} limit reached for this minute. Try again shortly.")
-        if state["day_count"] >= limit_day:
+        persistent = _persist_daily_usage_increment(ip or "unknown", kind, day_key, limit_day)
+        if not persistent and state["day_count"] >= limit_day:
             raise HTTPException(429, f"{label} daily limit reached. Try again tomorrow.")
         state["minute_count"] += 1
         state["day_count"] += 1
@@ -79,6 +84,28 @@ def _check_rate_limit(ip: str, kind: str, limit_minute: int, limit_day: int, lab
 
 def _reserve_ai_neurons(estimate: int) -> None:
     day_key = time.strftime("%Y-%m-%d", time.gmtime())
+    app_instance = _firebase_app()
+    if app_instance is not None:
+        try:
+            from firebase_admin import firestore
+            database = firestore.client(app=app_instance)
+            reference = database.collection("_amt_ai_budget").document(day_key)
+            transaction = database.transaction()
+
+            @firestore.transactional
+            def reserve(transaction):
+                snapshot = reference.get(transaction=transaction)
+                used = int(snapshot.get("neurons") or 0) if snapshot.exists else 0
+                if used + estimate > AI_DAILY_NEURON_BUDGET:
+                    raise HTTPException(429, "The shared free AI allowance is used for today. Please try again tomorrow.")
+                transaction.set(reference, {"neurons": used + estimate, "day": day_key}, merge=True)
+
+            reserve(transaction)
+            return
+        except HTTPException:
+            raise
+        except Exception as exc:
+            raise HTTPException(503, "The shared AI daily allowance could not be checked. Please try again later.") from exc
     with _rate_lock:
         if _ai_daily_budget["day"] != day_key:
             _ai_daily_budget.update(day=day_key, neurons=0)
@@ -94,6 +121,107 @@ def _request_ip(request: Request) -> str:
         return str(ipaddress.ip_address(candidate)) if candidate else (request.client.host if request.client else "unknown")
     except ValueError:
         return request.client.host if request.client else "unknown"
+
+
+def _firebase_app():
+    """Load Firebase Admin lazily; web-only deployments need no Admin credentials."""
+    global _firebase_app_instance
+    if _firebase_app_instance is not None:
+        return _firebase_app_instance
+    project_id = os.getenv("FIREBASE_PROJECT_ID", "").strip()
+    service_account_json = os.getenv("FIREBASE_SERVICE_ACCOUNT_JSON", "").strip()
+    if not project_id or not service_account_json:
+        return None
+    with _firebase_lock:
+        if _firebase_app_instance is None:
+            try:
+                import firebase_admin
+                from firebase_admin import credentials
+                try:
+                    _firebase_app_instance = firebase_admin.get_app()
+                except ValueError:
+                    credential = credentials.Certificate(json.loads(service_account_json))
+                    _firebase_app_instance = firebase_admin.initialize_app(credential, {"projectId": project_id})
+            except (ImportError, ValueError, TypeError, json.JSONDecodeError) as exc:
+                raise HTTPException(503, "Firebase server verification is not configured correctly.") from exc
+    return _firebase_app_instance
+
+
+def _persist_daily_usage_increment(identity: str, kind: str, day_key: str, limit_day: int) -> bool:
+    """Atomically count daily use across restarts/instances when Firestore is configured."""
+    app_instance = _firebase_app()
+    if app_instance is None:
+        return False
+    try:
+        from firebase_admin import firestore
+        digest = hashlib.sha256(f"{day_key}|{kind}|{identity}".encode()).hexdigest()
+        database = firestore.client(app=app_instance)
+        reference = database.collection("_amt_daily_usage").document(digest)
+        transaction = database.transaction()
+
+        @firestore.transactional
+        def increment(transaction):
+            snapshot = reference.get(transaction=transaction)
+            used = int(snapshot.get("count") or 0) if snapshot.exists else 0
+            if used >= limit_day:
+                raise HTTPException(429, f"{kind.title()} daily limit reached. Try again tomorrow.")
+            transaction.set(reference, {"count": used + 1, "kind": kind, "day": day_key}, merge=True)
+
+        increment(transaction)
+        return True
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(503, "The daily AI limit could not be checked. Please try again later.") from exc
+
+
+def _authenticated_uid(request: Request) -> str | None:
+    authorization = request.headers.get("Authorization", "")
+    if not authorization.startswith("Bearer "):
+        return None
+    app_instance = _firebase_app()
+    if app_instance is None:
+        raise HTTPException(503, "Firebase server verification is not configured yet.")
+    try:
+        import firebase_admin.auth
+        token = authorization[7:].strip()
+        if not token or len(token) > 8192:
+            raise ValueError("Invalid bearer token")
+        return str(firebase_admin.auth.verify_id_token(token, app=app_instance)["uid"])
+    except Exception as exc:
+        raise HTTPException(401, "Your sign-in session expired. Please sign in again.") from exc
+
+
+def _usage_identity(request: Request, uid: str | None) -> str:
+    return f"uid:{uid}" if uid else f"ip:{_request_ip(request)}"
+
+
+def _usage_snapshot(identity: str, authenticated: bool) -> dict[str, Any]:
+    today = time.strftime("%Y-%m-%d", time.gmtime())
+    limits = {
+        "image": (MEMBER_IMAGE_LIMIT_DAY if authenticated else GUEST_IMAGE_LIMIT_DAY,
+                  MEMBER_IMAGE_LIMIT_MINUTE if authenticated else GUEST_IMAGE_LIMIT_MINUTE),
+        "chat": (MEMBER_CHAT_LIMIT_DAY if authenticated else GUEST_CHAT_LIMIT_DAY,
+                 MEMBER_CHAT_LIMIT_MINUTE if authenticated else GUEST_CHAT_LIMIT_MINUTE),
+    }
+    with _rate_lock:
+        result = {}
+        for kind, (daily_limit, minute_limit) in limits.items():
+            state = _ai_rate_state.get((identity, kind), {})
+            used = state.get("day_count", 0) if state.get("day") == today else 0
+            result[kind] = {"used": used, "limit": daily_limit, "minute_limit": minute_limit}
+    app_instance = _firebase_app()
+    if app_instance is not None:
+        try:
+            from firebase_admin import firestore
+            database = firestore.client(app=app_instance)
+            for kind in limits:
+                digest = hashlib.sha256(f"{today}|{kind}|{identity}".encode()).hexdigest()
+                snapshot = database.collection("_amt_daily_usage").document(digest).get()
+                result[kind]["used"] = int(snapshot.get("count") or 0) if snapshot.exists else 0
+        except Exception as exc:
+            raise HTTPException(503, "Usage inventory could not be loaded.") from exc
+    return {"authenticated": authenticated, **result}
 
 
 app = FastAPI(
@@ -133,6 +261,11 @@ class AiImageRequest(BaseModel):
 
 class CaptchaVerifyRequest(BaseModel):
     token: str = Field(min_length=1, max_length=2048)
+
+
+class FeedbackRequest(BaseModel):
+    message: str = Field(min_length=3, max_length=2000)
+    rating: int | None = Field(default=None, ge=1, le=5)
 
 
 def _verification_cookie_valid(cookie: str, secret: str) -> bool:
@@ -190,7 +323,11 @@ def cloudflare_ai_config() -> tuple[str, str]:
 
 @app.post("/api/ai/chat")
 def ai_chat(payload: AiChatRequest, request: Request):
-    _check_rate_limit(_request_ip(request), "chat", CHAT_LIMIT_MINUTE, CHAT_LIMIT_DAY, "Chat")
+    uid = _authenticated_uid(request)
+    identity = _usage_identity(request, uid)
+    _check_rate_limit(identity, "chat",
+                      MEMBER_CHAT_LIMIT_MINUTE if uid else GUEST_CHAT_LIMIT_MINUTE,
+                      MEMBER_CHAT_LIMIT_DAY if uid else GUEST_CHAT_LIMIT_DAY, "Chat")
     if sum(len(message.content) for message in payload.messages) > 12000:
         raise HTTPException(413, "Keep the total chat input under 12,000 characters.")
     account_id, token = cloudflare_ai_config()
@@ -233,7 +370,11 @@ def ai_chat(payload: AiChatRequest, request: Request):
 
 @app.post("/api/ai/image")
 def ai_image(payload: AiImageRequest, request: Request):
-    _check_rate_limit(_request_ip(request), "image", IMAGE_LIMIT_MINUTE, IMAGE_LIMIT_DAY, "Image")
+    uid = _authenticated_uid(request)
+    identity = _usage_identity(request, uid)
+    _check_rate_limit(identity, "image",
+                      MEMBER_IMAGE_LIMIT_MINUTE if uid else GUEST_IMAGE_LIMIT_MINUTE,
+                      MEMBER_IMAGE_LIMIT_DAY if uid else GUEST_IMAGE_LIMIT_DAY, "Image")
     account_id, token = cloudflare_ai_config()
     _reserve_ai_neurons(75)
     try:
@@ -262,6 +403,34 @@ def ai_image(payload: AiImageRequest, request: Request):
     if content_type not in {"image/jpeg", "image/png", "image/webp"} or not image_bytes:
         raise HTTPException(502, "The AI provider did not return an image.")
     return Response(image_bytes, media_type=content_type, headers={"Cache-Control": "no-store"})
+
+
+@app.get("/api/usage")
+def usage_inventory(request: Request):
+    uid = _authenticated_uid(request)
+    return _usage_snapshot(_usage_identity(request, uid), bool(uid))
+
+
+@app.post("/api/feedback")
+def submit_feedback(payload: FeedbackRequest, request: Request):
+    _check_rate_limit(f"ip:{_request_ip(request)}", "feedback", 2, 5, "Feedback")
+    app_instance = _firebase_app()
+    if app_instance is None:
+        raise HTTPException(503, "Feedback storage is not configured yet.")
+    uid = _authenticated_uid(request)
+    try:
+        from firebase_admin import firestore
+        database = firestore.client(app=app_instance)
+        database.collection("site_feedback").add({
+            "message": payload.message.strip(),
+            "rating": payload.rating,
+            "uid": uid,
+            "created_at": firestore.SERVER_TIMESTAMP,
+            "source": "allmediatool.online",
+        })
+    except Exception as exc:
+        raise HTTPException(503, "Feedback could not be saved. Please try again later.") from exc
+    return {"received": True}
 
 
 DESKTOP_UA = (
