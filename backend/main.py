@@ -280,12 +280,27 @@ _u2netp_session = None
 
 
 def get_u2netp_session():
-    """Lazy-load lightweight u2netp ONNX session once to keep RAM low on free tier."""
+    """Lazy-load a low-memory u2netp ONNX session for small Render instances."""
     global _u2netp_session
     if _u2netp_session is None:
         with _u2netp_lock:
             if _u2netp_session is None:
-                _u2netp_session = new_session("u2netp")
+                # ONNX Runtime otherwise creates a large CPU thread pool and
+                # memory arena. On Render's 512 MB instance these can push an
+                # otherwise small background-removal request into an OOM restart.
+                import onnxruntime as ort
+
+                options = ort.SessionOptions()
+                options.intra_op_num_threads = 1
+                options.inter_op_num_threads = 1
+                options.execution_mode = ort.ExecutionMode.ORT_SEQUENTIAL
+                options.enable_cpu_mem_arena = False
+                options.enable_mem_pattern = False
+                _u2netp_session = new_session(
+                    "u2netp",
+                    sess_opts=options,
+                    providers=["CPUExecutionProvider"],
+                )
     return _u2netp_session
 
 
@@ -430,6 +445,10 @@ def fetch_video_info(req: UrlPayload, request: Request):
         "no_warnings": True,
         "skip_download": True,
         "noplaylist": True,
+        # YouTube now requires yt-dlp's EJS challenge solver and a JS runtime.
+        # Deno and yt-dlp-ejs are installed in the production image.
+        "js_runtimes": {"deno": {}},
+        "remote_components": ["ejs:github"],
     }
     cookies = get_cookies_file()
     if cookies:
@@ -475,6 +494,8 @@ def _merge_and_stream_video(url: str, max_height: int, background_tasks: Backgro
         "format": f"bestvideo[height<={max_height}]+bestaudio/best[height<={max_height}]/best",
         "merge_output_format": "mp4",
         "outtmpl": out_tpl,
+        "js_runtimes": {"deno": {}},
+        "remote_components": ["ejs:github"],
     }
     cookies = get_cookies_file()
     if cookies:
@@ -768,6 +789,8 @@ async def video_convert(
                 "format": "bestaudio/best",
                 "outtmpl": out_tpl,
                 "postprocessors": [{"key": "FFmpegExtractAudio", "preferredcodec": "mp3", "preferredquality": safe_kbps}],
+                "js_runtimes": {"deno": {}},
+                "remote_components": ["ejs:github"],
             }
             cookies = get_cookies_file()
             if cookies:
@@ -888,8 +911,11 @@ async def process_background(
         raise HTTPException(status_code=400, detail="Upload an image under 20 MB.")
 
     try:
-        orig = ImageOps.exif_transpose(Image.open(io.BytesIO(raw))).convert("RGBA")
-        orig.thumbnail((2200, 2200), Image.Resampling.LANCZOS)
+        orig = ImageOps.exif_transpose(Image.open(io.BytesIO(raw)))
+        # Bound peak ONNX memory on the free 512 MB service. Larger uploads are
+        # still accepted; their processing copy is safely reduced to 1280 px.
+        orig.thumbnail((1280, 1280), Image.Resampling.LANCZOS)
+        orig = orig.convert("RGBA")
         session = get_u2netp_session()
         fg_cutout = remove(orig, session=session).convert("RGBA")
 
@@ -1494,6 +1520,8 @@ def extract_youtube_transcript(req: UrlPayload):
             "quiet": True,
             "no_warnings": True,
             "skip_download": True,
+            "js_runtimes": {"deno": {}},
+            "remote_components": ["ejs:github"],
             "writesubtitles": True,
             "writeautomaticsub": True,
             "subtitleslangs": ["en", "ur", "hi"],
