@@ -1,3 +1,4 @@
+import collections
 import http.cookiejar
 import io
 import json
@@ -33,6 +34,32 @@ from reportlab.pdfgen import canvas
 
 # Register HEIC/HEIF support in Pillow
 register_heif_opener()
+
+# ---------------------------------------------------------------------------
+# Per-IP rate limiting (prevents runaway API bills)
+# ---------------------------------------------------------------------------
+_rate_lock = threading.Lock()
+_ip_image_minute: dict = collections.defaultdict(list)
+_ip_image_day:    dict = collections.defaultdict(list)
+_ip_chat_minute:  dict = collections.defaultdict(list)
+_ip_chat_day:     dict = collections.defaultdict(list)
+
+IMAGE_LIMIT_MINUTE = 5
+IMAGE_LIMIT_DAY    = 20
+CHAT_LIMIT_MINUTE  = 10
+CHAT_LIMIT_DAY     = 50
+
+def _check_rate_limit(store_min, store_day, ip, limit_min, limit_day, label):
+    now = time.time()
+    with _rate_lock:
+        store_min[ip] = [t for t in store_min[ip] if now - t < 60]
+        store_day[ip] = [t for t in store_day[ip] if now - t < 86400]
+        if len(store_min[ip]) >= limit_min:
+            raise HTTPException(429, f"{label} rate limit: too many requests this minute.")
+        if len(store_day[ip]) >= limit_day:
+            raise HTTPException(429, f"{label} rate limit: daily limit reached. Try again tomorrow.")
+        store_min[ip].append(now)
+        store_day[ip].append(now)
 
 app = FastAPI(
     title="All Media Tools API",
@@ -70,22 +97,17 @@ class AiImageRequest(BaseModel):
 
 
 def pollinations_request(method: str, path: str, **kwargs):
-    key = os.getenv("POLLINATIONS_API_KEY", "").strip()
-    if not key:
-        raise HTTPException(503, "AI generation is temporarily unavailable.")
+    # Free public endpoint - no API key or billing required
     try:
         response = requests.request(
             method,
-            f"https://gen.pollinations.ai{path}",
-            headers={"Authorization": f"Bearer {key}"},
+            f"https://image.pollinations.ai{path}",
             timeout=(5, 95),
-            allow_redirects=False,
+            allow_redirects=True,
             **kwargs,
         )
     except requests.RequestException:
         raise HTTPException(502, "The AI provider did not respond. Try again shortly.") from None
-    if response.status_code in (401, 402, 403):
-        raise HTTPException(503, "AI generation is temporarily unavailable.")
     if response.status_code == 429:
         raise HTTPException(429, "AI generation is busy. Try again shortly.")
     if not 200 <= response.status_code < 300:
@@ -94,7 +116,8 @@ def pollinations_request(method: str, path: str, **kwargs):
 
 
 @app.post("/api/ai/chat")
-def ai_chat(payload: AiChatRequest):
+def ai_chat(payload: AiChatRequest, request: Request):
+    _check_rate_limit(_ip_chat_minute, _ip_chat_day, request.client.host, CHAT_LIMIT_MINUTE, CHAT_LIMIT_DAY, "Chat")
     key = os.getenv("GROQ_API_KEY", "").strip()
     if not key:
         raise HTTPException(503, "AI chat is temporarily unavailable.")
@@ -129,7 +152,8 @@ def ai_chat(payload: AiChatRequest):
 
 
 @app.post("/api/ai/image")
-def ai_image(payload: AiImageRequest):
+def ai_image(payload: AiImageRequest, request: Request):
+    _check_rate_limit(_ip_image_minute, _ip_image_day, request.client.host, IMAGE_LIMIT_MINUTE, IMAGE_LIMIT_DAY, "Image")
     prompt = urllib.parse.quote(payload.prompt, safe="")
     response = pollinations_request(
         "GET", f"/image/{prompt}",
