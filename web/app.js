@@ -581,6 +581,18 @@ const BACKEND_URL = "";
 
   const verifiedToolOrder = ["QR Code Generator", "Lorem Ipsum Generator", "Epoch Converter"];
 
+  // Top tools by search volume — shown in "Popular" strip
+  const POPULAR_TOOL_NAMES = [
+    "Remove Background",
+    "AI Image Upscaler",
+    "Compress Image",
+    "JPG to PDF",
+    "Image to Text (OCR)",
+    "MP4 to MP3",
+    "Merge PDF",
+    "Resize Image",
+  ];
+
   function needsServer(tool) {
     return tool.engine.startsWith("api_") || tool.engine.startsWith("client_ai_");
   }
@@ -612,6 +624,21 @@ const BACKEND_URL = "";
     frame.setAttribute("sandbox", "allow-scripts allow-popups allow-popups-to-escape-sandbox");
     slot.append(label, frame);
     body.append(slot);
+  }
+
+  function renderPopularStrip() {
+    const strip = document.getElementById("popular-strip");
+    if (!strip) return;
+    const popularTools = POPULAR_TOOL_NAMES.map(name => ALL_TOOLS.find(t => t.name === name)).filter(Boolean);
+    if (!popularTools.length) { document.getElementById("popular-strip-wrap")?.remove(); return; }
+    strip.innerHTML = popularTools.map(tool => {
+      const meta = CATEGORY_META[tool.category];
+      return `<button type="button" onclick="window.openToolByName(${JSON.stringify(tool.name)})"
+        class="shrink-0 flex flex-col items-center gap-1 bg-white dark:bg-slate-800/90 border border-slate-200/80 dark:border-slate-700/80 rounded-2xl px-3 py-2.5 shadow-sm hover:shadow-md active:scale-[0.97] transition-all cursor-pointer min-w-[72px]">
+        <div class="w-9 h-9 rounded-xl ${meta.iconBg} flex items-center justify-center">${meta.svg}</div>
+        <span class="text-[9.5px] font-bold text-slate-700 dark:text-slate-200 text-center leading-tight line-clamp-2 max-w-[70px]">${escapeHtml(tool.name)}</span>
+      </button>`;
+    }).join("");
   }
 
   function renderToolsGrid() {
@@ -2390,6 +2417,7 @@ const BACKEND_URL = "";
   });
 
   // Initial render
+  renderPopularStrip();
   renderToolsGrid();
   refreshApiHealth();
   window.__ALLMEDIA_BOOTED__ = true;

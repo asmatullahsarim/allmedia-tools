@@ -194,6 +194,13 @@
           <span id="showing-count-badge" class="px-2 py-0.5 rounded-full skin-soft-bg skin-text text-[10px] font-bold">85 tools</span>
         </div>
 
+        <!-- Popular Tools Quick Strip -->
+        <div id="popular-strip-wrap" class="pl-3.5 mb-3">
+          <div id="popular-strip" class="flex gap-2 overflow-x-auto no-scrollbar pr-3.5 py-0.5">
+            <!-- Rendered by app.js -->
+          </div>
+        </div>
+
         <div class="pl-3.5 mb-3">
           <div id="filter-pills-row" class="flex items-center gap-1.5 overflow-x-auto no-scrollbar pr-3.5 py-0.5">
             <button type="button" onclick="selectCategoryFilter('all', false)" data-filter="all" class="filter-pill px-3 py-1.5 rounded-xl text-xs font-bold skin-bg text-white skin-shadow shrink-0 transition-all">All Tools</button>
@@ -207,7 +214,15 @@
         </div>
 
         <!-- 5. 2-Column Tool Grid -->
-        <div id="tools-grid" class="px-3.5 grid grid-cols-2 gap-2.5"></div>
+        <div id="tools-grid" class="px-3.5 grid grid-cols-2 gap-2.5">
+          <!-- Skeleton placeholders shown until JS renders tools -->
+          <div class="skeleton-card bg-white dark:bg-slate-800/95 rounded-2xl p-2.5 border border-slate-200/80 dark:border-slate-700/80 shadow-sm flex items-center gap-2.5 animate-pulse"><div class="w-9 h-9 rounded-xl bg-slate-200 dark:bg-slate-700 shrink-0"></div><div class="flex-1 space-y-1.5"><div class="h-3 bg-slate-200 dark:bg-slate-700 rounded w-3/4"></div><div class="h-2.5 bg-slate-200 dark:bg-slate-700 rounded w-1/2"></div></div></div>
+          <div class="skeleton-card bg-white dark:bg-slate-800/95 rounded-2xl p-2.5 border border-slate-200/80 dark:border-slate-700/80 shadow-sm flex items-center gap-2.5 animate-pulse"><div class="w-9 h-9 rounded-xl bg-slate-200 dark:bg-slate-700 shrink-0"></div><div class="flex-1 space-y-1.5"><div class="h-3 bg-slate-200 dark:bg-slate-700 rounded w-3/4"></div><div class="h-2.5 bg-slate-200 dark:bg-slate-700 rounded w-1/2"></div></div></div>
+          <div class="skeleton-card bg-white dark:bg-slate-800/95 rounded-2xl p-2.5 border border-slate-200/80 dark:border-slate-700/80 shadow-sm flex items-center gap-2.5 animate-pulse"><div class="w-9 h-9 rounded-xl bg-slate-200 dark:bg-slate-700 shrink-0"></div><div class="flex-1 space-y-1.5"><div class="h-3 bg-slate-200 dark:bg-slate-700 rounded w-3/4"></div><div class="h-2.5 bg-slate-200 dark:bg-slate-700 rounded w-1/2"></div></div></div>
+          <div class="skeleton-card bg-white dark:bg-slate-800/95 rounded-2xl p-2.5 border border-slate-200/80 dark:border-slate-700/80 shadow-sm flex items-center gap-2.5 animate-pulse"><div class="w-9 h-9 rounded-xl bg-slate-200 dark:bg-slate-700 shrink-0"></div><div class="flex-1 space-y-1.5"><div class="h-3 bg-slate-200 dark:bg-slate-700 rounded w-3/4"></div><div class="h-2.5 bg-slate-200 dark:bg-slate-700 rounded w-1/2"></div></div></div>
+          <div class="skeleton-card bg-white dark:bg-slate-800/95 rounded-2xl p-2.5 border border-slate-200/80 dark:border-slate-700/80 shadow-sm flex items-center gap-2.5 animate-pulse"><div class="w-9 h-9 rounded-xl bg-slate-200 dark:bg-slate-700 shrink-0"></div><div class="flex-1 space-y-1.5"><div class="h-3 bg-slate-200 dark:bg-slate-700 rounded w-3/4"></div><div class="h-2.5 bg-slate-200 dark:bg-slate-700 rounded w-1/2"></div></div></div>
+          <div class="skeleton-card bg-white dark:bg-slate-800/95 rounded-2xl p-2.5 border border-slate-200/80 dark:border-slate-700/80 shadow-sm flex items-center gap-2.5 animate-pulse"><div class="w-9 h-9 rounded-xl bg-slate-200 dark:bg-slate-700 shrink-0"></div><div class="flex-1 space-y-1.5"><div class="h-3 bg-slate-200 dark:bg-slate-700 rounded w-3/4"></div><div class="h-2.5 bg-slate-200 dark:bg-slate-700 rounded w-1/2"></div></div></div>
+        </div>
 
         <!-- Empty Search State -->
         <div id="no-results-box" class="hidden px-6 py-10 text-center">
