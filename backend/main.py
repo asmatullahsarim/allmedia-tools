@@ -7,7 +7,7 @@ import ipaddress
 import io
 import json
 import math
-import os
+import o
 import re
 import shutil
 import subprocess
@@ -338,6 +338,19 @@ def _temp_reaper_loop() -> None:
 def start_background_reaper() -> None:
     t = threading.Thread(target=_temp_reaper_loop, daemon=True)
     t.start()
+
+    # Pre-load the u2netp ONNX model in a background thread so the first
+    # Remove Background request on a cold-start Render instance does not
+    # time out waiting for the model to initialise.
+    threading.Thread(target=_warmup_u2netp, daemon=True).start()
+
+
+def _warmup_u2netp() -> None:
+    """Load the u2netp session once at startup to avoid a cold-start timeout."""
+    try:
+        get_u2netp_session()
+    except Exception:
+        pass  # Non-fatal; the first real request will retry.
 
 
 def get_cookies_file() -> str | None:
@@ -914,7 +927,7 @@ async def process_background(
         orig = ImageOps.exif_transpose(Image.open(io.BytesIO(raw)))
         # Bound peak ONNX memory on the free 512 MB service. Larger uploads are
         # still accepted; their processing copy is safely reduced to 1280 px.
-        orig.thumbnail((1280, 1280), Image.Resampling.LANCZOS)
+        orig.thumbnail((800, 800), Image.Resampling.LANCZOS)
         orig = orig.convert("RGBA")
         session = get_u2netp_session()
         fg_cutout = remove(orig, session=session).convert("RGBA")
@@ -936,6 +949,11 @@ async def process_background(
 
         out_buf = io.BytesIO()
         result_img.save(out_buf, format=fmt)
+    except MemoryError:
+        raise HTTPException(
+            status_code=503,
+            detail="Background removal ran out of memory. Try a smaller image (under 2 MB) and retry.",
+        )
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"AI background processing failed: {exc}")
 
