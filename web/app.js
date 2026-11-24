@@ -1644,6 +1644,7 @@ const BACKEND_URL = "";
       if (!/^https?:\/\/.+/i.test(u)) { out.innerHTML = errorBoxHtml("Please enter a valid http/https video link."); return; }
       out.innerHTML = loadingSpinnerHtml("Extracting HD video formats via yt-dlp...");
       let data = null;
+      let apiError = "";
       if (getApiBase() || !location.hostname.endsWith(".pages.dev")) {
         try {
           const res = await fetch(apiEndpoint("/api/video-download"), {
@@ -1652,11 +1653,15 @@ const BACKEND_URL = "";
             body: JSON.stringify({ url: u, max_resolution: "1080p" }),
           });
           if (res.ok) data = await res.json();
-        } catch (_) {}
+          else {
+            const err = await res.json().catch(() => ({}));
+            apiError = typeof err.detail === "string" ? err.detail.slice(0, 240) : `API request failed (${res.status}).`;
+          }
+        } catch (_) { apiError = "The video API could not be reached."; }
       }
       if (!data) data = await tryKeylessVideoFallback(u);
       if (!data) {
-        out.innerHTML = errorBoxHtml("Could not fetch video. Check that the All Media Tools API is online or try another supported link.");
+        out.innerHTML = errorBoxHtml(apiError || "Could not fetch this video. It may be private, region-restricted, or unsupported by the source.");
         return;
       }
       out.innerHTML = `
