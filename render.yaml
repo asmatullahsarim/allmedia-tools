@@ -8,6 +8,8 @@ services:
     healthCheckPath: /api/health
     envVars:
       - key: PORT
-        value: "7860"
+        value: "10000"
       - key: WORK_TMP_DIR
         value: /tmp/allmedia_work
+      - key: ALLOWED_ORIGINS
+        value: "https://allmediatool.online"
