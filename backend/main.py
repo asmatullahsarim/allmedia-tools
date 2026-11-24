@@ -351,6 +351,19 @@ def _warmup_u2netp() -> None:
     except Exception:
         pass  # Non-fatal; the first real request will retry.
 
+    # Pre-load the u2netp ONNX model in a background thread so the first
+    # Remove Background request on a cold-start Render instance does not
+    # time out waiting for the model to initialise.
+    threading.Thread(target=_warmup_u2netp, daemon=True).start()
+
+
+def _warmup_u2netp() -> None:
+    """Load the u2netp session once at startup to avoid a cold-start timeout."""
+    try:
+        get_u2netp_session()
+    except Exception:
+        pass  # Non-fatal; the first real request will retry.
+
 
 def get_cookies_file() -> str | None:
     if os.path.isfile(COOKIES_PATH) and os.path.getsize(COOKIES_PATH) > 0:
@@ -924,9 +937,8 @@ async def process_background(
 
     try:
         orig = ImageOps.exif_transpose(Image.open(io.BytesIO(raw)))
-        # Keep the working copy small to stay inside the 512 MB Render free
-        # tier. The thumbnail is only used for ONNX inference; the visual
-        # quality loss is negligible for typical portrait/product shots.
+        # Bound peak ONNX memory on the free 512 MB service. Larger uploads are
+        # still accepted; their processing copy is safely reduced to 1280 px.
         orig.thumbnail((800, 800), Image.Resampling.LANCZOS)
         orig = orig.convert("RGBA")
         session = get_u2netp_session()
