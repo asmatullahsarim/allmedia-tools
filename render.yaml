@@ -12,4 +12,4 @@ services:
       - key: WORK_TMP_DIR
         value: /tmp/allmedia_work
       - key: ALLOWED_ORIGINS
-        value: "https://allmediatool.online"
+        value: "https://allmediatool.online,https://www.allmediatool.online"

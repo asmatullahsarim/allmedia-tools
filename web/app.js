@@ -1942,7 +1942,7 @@ const BACKEND_URL = "";
       const f = fileIn.files[0];
       if (!f) return;
       window.triggerRewardedAd(tool.name, async () => {
-        out.innerHTML = loadingSpinnerHtml("Running u2netp AI background segmentation...");
+        out.innerHTML = loadingSpinnerHtml("Removing background... this may take 20–40 s on a cold start.");
         try {
           ensureBackendUrlConfigured();
           const form = new FormData();
@@ -1951,7 +1951,11 @@ const BACKEND_URL = "";
           if (document.getElementById("bg-col")) form.append("bg_color", document.getElementById("bg-col").value);
           if (document.getElementById("bg-blur")) form.append("blur_radius", document.getElementById("bg-blur").value);
 
-          const res = await fetch(apiEndpoint("/api/bg-remove"), { method: "POST", body: form });
+          const res = await fetch(apiEndpoint("/api/bg-remove"), {
+            method: "POST",
+            body: form,
+            signal: AbortSignal.timeout(90000),
+          });
           if (!res.ok) {
             const e = await res.json().catch(() => ({}));
             throw new Error(e.detail || "BG removal failed.");
@@ -1960,7 +1964,10 @@ const BACKEND_URL = "";
           const objUrl = URL.createObjectURL(blob);
           out.innerHTML = downloadResultCardHtml(blob, `${f.name.replace(/\.[^.]+$/, "")}_${tool.action}.png`, f.size, objUrl);
         } catch (err) {
-          out.innerHTML = errorBoxHtml(err.message);
+          const msg = err.name === "TimeoutError"
+            ? "Request timed out. The server may be starting up — please wait 30 seconds and try again."
+            : err.message;
+          out.innerHTML = errorBoxHtml(msg);
         }
       }, (msg) => { out.innerHTML = errorBoxHtml(msg); });
     });
