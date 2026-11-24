@@ -163,3 +163,170 @@ html {
 #adsterra-banner small { color:#64748b; font:10px sans-serif; margin-bottom:4px; }
 #adsterra-banner iframe { border:0; max-width:100%; }
 @media (max-width:340px) { #adsterra-banner iframe { width:100%; } }
+
+/* Browser layout: full viewport on laptops and desktops, compact sheet on phones. */
+@media (min-width: 768px) {
+  body {
+    min-height: 100vh;
+    align-items: stretch;
+    justify-content: stretch;
+    padding: 0;
+    background: #f1f5f9;
+  }
+
+  .dark body { background: #020617; }
+
+  body > .hidden.sm\:flex { display: none; }
+
+  #app-shell {
+    width: 100%;
+    max-width: none;
+    height: 100vh;
+    max-height: none;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  #main-scroll-area { padding-bottom: 2rem; }
+
+  #tools-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 14px;
+    padding-left: 2rem;
+    padding-right: 2rem;
+  }
+
+  #filter-pills-row { padding-left: 2rem; padding-right: 2rem; }
+  #tool-drawer.drawer-closed { display: none; }
+  #tool-drawer:not(.drawer-closed) {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: auto;
+    width: min(520px, 46vw);
+    max-height: none;
+    border-radius: 0;
+    border-top: 0;
+    border-left: 1px solid rgb(226 232 240);
+    transform: none;
+    z-index: 60;
+  }
+
+  .dark #tool-drawer:not(.drawer-closed) { border-left-color: rgb(51 65 85); }
+  #drawer-backdrop:not(.hidden) { display: none; }
+}
+
+@media (min-width: 1200px) {
+  #tools-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  #tool-drawer:not(.drawer-closed) { width: 480px; }
+}
+
+@media (min-width: 1600px) {
+  #tools-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+}
+
+.category-navigation,
+.featured-tools-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: .5rem;
+}
+
+.category-navigation { margin-block: .75rem; }
+.category-navigation button,
+.featured-tool {
+  border: 1px solid rgb(148 163 184 / .35);
+  border-radius: .75rem;
+  padding: .65rem .8rem;
+  font-size: .875rem;
+  font-weight: 650;
+}
+
+.category-navigation button[aria-pressed="true"] {
+  background: var(--skin-primary);
+  color: white;
+}
+
+.featured-tool { display: block; height: 100%; }
+.featured-tool:hover { border-color: var(--skin-primary); }
+.featured-tool span, .tool-card-description {
+  display: block;
+  margin-top: .2rem;
+  font-size: .8125rem;
+  font-weight: 400;
+  color: #475569;
+}
+.dark .featured-tool span, .dark .tool-card-description { color: #cbd5e1; }
+.tool-card-item { min-height: 4.25rem; }
+.link-downloader { margin: .5rem 1rem 1rem; }
+.link-downloader summary { cursor: pointer; padding-block: .5rem; }
+#live-search-input { min-height: 2.75rem; font-size: 1rem; }
+
+@media (max-width: 767px) {
+  .featured-tools-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  #tool-drawer:not(.drawer-closed) {
+    position: fixed;
+    inset: 0;
+    max-height: 100dvh;
+    border-radius: 0;
+    z-index: 60;
+  }
+}
+
+.featured-tools-grid .featured-tool { width: 100%; text-align: start; }
+.link-downloader { margin: .75rem 0; }
+
+.site-header { gap: .75rem; padding: .85rem clamp(.7rem, 3vw, 2rem); }
+.site-brand { min-width: 0; }
+.site-logo { width: clamp(2.5rem, 8vw, 3.5rem); aspect-ratio: 1; flex-shrink: 0; }
+.site-logo svg { width: 55%; height: 55%; }
+.site-name { display: block; font-size: clamp(1.125rem, 4vw, 1.75rem); line-height: 1.12; }
+.site-tagline { font-size: .8125rem; }
+#api-health-status { font-size: .75rem; }
+#api-health-dot { flex-shrink: 0; }
+.home-title { font-size: clamp(1.5rem, 4vw, 2.75rem); line-height: 1.12; }
+.ad-placement { display: flex; justify-content: center; padding-block: .75rem; }
+#adsterra-banner:not([hidden]) { width: 320px; max-width: 100%; border-radius: .75rem; }
+.dark #adsterra-banner:not([hidden]) { background: #1e293b; }
+.dark #adsterra-banner small { color: #cbd5e1; }
+
+.display-ad:not([hidden]) {
+  display: grid;
+  justify-items: center;
+  overflow: hidden;
+  max-inline-size: 100%;
+  container-type: inline-size;
+}
+
+.display-ad small {
+  color: var(--ad-label-color, #64748b);
+  font-size: 0.6875rem;
+  line-height: 1rem;
+}
+
+.dark .display-ad { --ad-label-color: #cbd5e1; }
+
+.display-ad iframe {
+  display: block;
+  max-inline-size: 100%;
+  border: 0;
+  margin-block-end: 0.75rem;
+}
+
+@media (max-width: 767px) {
+  .display-ad--desktop:not([hidden]) { display: none; }
+}
+
+.site-wordmark {
+  display: block;
+  width: clamp(150px, 47vw, 265px);
+  height: auto;
+}
+
+.dark .site-wordmark {
+  background: #fff;
+  border-radius: .375rem;
+  padding: .2rem .35rem;
+}
