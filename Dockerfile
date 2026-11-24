@@ -8,5 +8,5 @@ COPY --chown=appuser:appuser backend/ .
 COPY --chown=appuser:appuser web/ ./web/
 USER appuser
 ENV HOME=/home/appuser PYTHONUNBUFFERED=1 WORK_TMP_DIR=/tmp/allmedia_work
-EXPOSE 7860
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "7860", "--limit-concurrency", "4", "--timeout-keep-alive", "5"]
+EXPOSE 10000
+CMD ["sh", "-c", "exec uvicorn main:app --host 0.0.0.0 --port ${PORT:-10000} --limit-concurrency 4 --timeout-keep-alive 5"]
