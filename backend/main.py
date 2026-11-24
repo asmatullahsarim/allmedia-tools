@@ -1,7 +1,12 @@
 import collections
+import base64
+import hashlib
+import hmac
 import http.cookiejar
+import ipaddress
 import io
 import json
+import math
 import os
 import re
 import shutil
@@ -21,7 +26,7 @@ import yt_dlp
 from bs4 import BeautifulSoup
 from fastapi import BackgroundTasks, FastAPI, File, Form, HTTPException, Query, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, RedirectResponse, Response, StreamingResponse
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from security import PublicSession, validate_public_url, read_upload, read_remote_image, UploadLimitMiddleware
 from PIL import Image, ImageEnhance, ImageFilter, ImageOps
@@ -36,30 +41,59 @@ from reportlab.pdfgen import canvas
 register_heif_opener()
 
 # ---------------------------------------------------------------------------
-# Per-IP rate limiting (prevents runaway API bills)
+# Bounded per-IP and global AI limits. Keep a reserve below Cloudflare's free
+# daily allocation, even if this service is moved to a paid Workers plan.
 # ---------------------------------------------------------------------------
 _rate_lock = threading.Lock()
-_ip_image_minute: dict = collections.defaultdict(list)
-_ip_image_day:    dict = collections.defaultdict(list)
-_ip_chat_minute:  dict = collections.defaultdict(list)
-_ip_chat_day:     dict = collections.defaultdict(list)
+_ai_rate_state: collections.OrderedDict = collections.OrderedDict()
+_ai_daily_budget = {"day": "", "neurons": 0}
+AI_DAILY_NEURON_BUDGET = 7500
+IMAGE_LIMIT_MINUTE, IMAGE_LIMIT_DAY = 3, 15
+CHAT_LIMIT_MINUTE, CHAT_LIMIT_DAY = 10, 25
 
-IMAGE_LIMIT_MINUTE = 5
-IMAGE_LIMIT_DAY    = 20
-CHAT_LIMIT_MINUTE  = 10
-CHAT_LIMIT_DAY     = 50
 
-def _check_rate_limit(store_min, store_day, ip, limit_min, limit_day, label):
+def _check_rate_limit(ip: str, kind: str, limit_minute: int, limit_day: int, label: str) -> None:
     now = time.time()
+    minute_key = int(now // 60)
+    day_key = time.strftime("%Y-%m-%d", time.gmtime(now))
+    key = (ip or "unknown", kind)
     with _rate_lock:
-        store_min[ip] = [t for t in store_min[ip] if now - t < 60]
-        store_day[ip] = [t for t in store_day[ip] if now - t < 86400]
-        if len(store_min[ip]) >= limit_min:
-            raise HTTPException(429, f"{label} rate limit: too many requests this minute.")
-        if len(store_day[ip]) >= limit_day:
-            raise HTTPException(429, f"{label} rate limit: daily limit reached. Try again tomorrow.")
-        store_min[ip].append(now)
-        store_day[ip].append(now)
+        state = _ai_rate_state.get(key)
+        if state is None:
+            state = {"minute": minute_key, "minute_count": 0, "day": day_key, "day_count": 0}
+        if state["minute"] != minute_key:
+            state["minute"], state["minute_count"] = minute_key, 0
+        if state["day"] != day_key:
+            state["day"], state["day_count"] = day_key, 0
+        if state["minute_count"] >= limit_minute:
+            raise HTTPException(429, f"{label} limit reached for this minute. Try again shortly.")
+        if state["day_count"] >= limit_day:
+            raise HTTPException(429, f"{label} daily limit reached. Try again tomorrow.")
+        state["minute_count"] += 1
+        state["day_count"] += 1
+        _ai_rate_state[key] = state
+        _ai_rate_state.move_to_end(key)
+        while len(_ai_rate_state) > 4096:
+            _ai_rate_state.popitem(last=False)
+
+
+def _reserve_ai_neurons(estimate: int) -> None:
+    day_key = time.strftime("%Y-%m-%d", time.gmtime())
+    with _rate_lock:
+        if _ai_daily_budget["day"] != day_key:
+            _ai_daily_budget.update(day=day_key, neurons=0)
+        if _ai_daily_budget["neurons"] + estimate > AI_DAILY_NEURON_BUDGET:
+            raise HTTPException(429, "The shared free AI allowance is used for today. Please try again tomorrow.")
+        _ai_daily_budget["neurons"] += estimate
+
+
+def _request_ip(request: Request) -> str:
+    """Use Cloudflare's edge IP header when the request came through the proxy."""
+    candidate = request.headers.get("CF-Connecting-IP", "").strip()
+    try:
+        return str(ipaddress.ip_address(candidate)) if candidate else (request.client.host if request.client else "unknown")
+    except ValueError:
+        return request.client.host if request.client else "unknown"
 
 
 app = FastAPI(
@@ -97,42 +131,83 @@ class AiImageRequest(BaseModel):
     prompt: str = Field(min_length=1, max_length=1000)
 
 
-def pollinations_request(method: str, path: str, **kwargs):
-    # Free public endpoint - no API key or billing required
+class CaptchaVerifyRequest(BaseModel):
+    token: str = Field(min_length=1, max_length=2048)
+
+
+def _verification_cookie_valid(cookie: str, secret: str) -> bool:
     try:
-        response = requests.request(
-            method,
-            f"https://image.pollinations.ai{path}",
-            timeout=(5, 95),
-            allow_redirects=True,
-            **kwargs,
+        version, expires, signature = cookie.split(".", 2)
+        if version != "v1" or int(expires) <= int(time.time()):
+            return False
+        payload = f"{version}.{expires}"
+        expected = hmac.new(secret.encode(), payload.encode(), hashlib.sha256).hexdigest()
+        return hmac.compare_digest(signature, expected)
+    except (ValueError, TypeError):
+        return False
+
+
+@app.post("/api/captcha/verify")
+def verify_human(payload: CaptchaVerifyRequest, request: Request, response: Response):
+    secret = os.getenv("TURNSTILE_SECRET_KEY", "").strip()
+    if not secret:
+        raise HTTPException(503, "Website verification is not configured yet.")
+    try:
+        result = requests.post(
+            "https://challenges.cloudflare.com/turnstile/v0/siteverify",
+            data={"secret": secret, "response": payload.token},
+            timeout=(5, 10),
         )
-    except requests.RequestException:
-        raise HTTPException(502, "The AI provider did not respond. Try again shortly.") from None
-    if response.status_code == 429:
-        raise HTTPException(429, "AI generation is busy. Try again shortly.")
-    if not 200 <= response.status_code < 300:
-        raise HTTPException(502, "The AI provider could not complete this request.")
-    return response
+        result.raise_for_status()
+        verification = result.json()
+    except (requests.RequestException, ValueError):
+        raise HTTPException(502, "Verification could not be checked. Please try again.") from None
+    if (
+        verification.get("success") is not True
+        or verification.get("hostname") not in {
+            "allmediatool.online", "www.allmediatool.online"
+        }
+        or verification.get("action") != "site_access"
+    ):
+        raise HTTPException(403, "Verification failed. Please try again.")
+    expires = int(time.time()) + 12 * 60 * 60
+    payload_text = f"v1.{expires}"
+    signature = hmac.new(secret.encode(), payload_text.encode(), hashlib.sha256).hexdigest()
+    response.set_cookie(
+        "amt_human", f"{payload_text}.{signature}", max_age=12 * 60 * 60,
+        httponly=True, secure=True, samesite="lax", path="/",
+    )
+    return {"verified": True}
+
+
+def cloudflare_ai_config() -> tuple[str, str]:
+    account_id = os.getenv("CLOUDFLARE_ACCOUNT_ID", "").strip()
+    token = os.getenv("CLOUDFLARE_API_TOKEN", "").strip()
+    if not account_id or not token:
+        raise HTTPException(503, "Cloudflare AI is not configured yet.")
+    return account_id, token
 
 
 @app.post("/api/ai/chat")
 def ai_chat(payload: AiChatRequest, request: Request):
-    _check_rate_limit(_ip_chat_minute, _ip_chat_day, request.client.host, CHAT_LIMIT_MINUTE, CHAT_LIMIT_DAY, "Chat")
-    key = os.getenv("OPENROUTER_API_KEY", "").strip()
-    if not key:
-        raise HTTPException(503, "AI chat is temporarily unavailable.")
+    _check_rate_limit(_request_ip(request), "chat", CHAT_LIMIT_MINUTE, CHAT_LIMIT_DAY, "Chat")
+    if sum(len(message.content) for message in payload.messages) > 12000:
+        raise HTTPException(413, "Keep the total chat input under 12,000 characters.")
+    account_id, token = cloudflare_ai_config()
+    max_tokens = 256
+    estimated_input_tokens = math.ceil((sum(len(message.content) for message in payload.messages) + 100) / 3)
+    # Current Cloudflare Llama 3.3 pricing: 26,668 neurons/M input and
+    # 204,805 neurons/M output. Add 50% headroom to avoid exceeding the cap.
+    estimate = math.ceil((estimated_input_tokens * 0.026668 + max_tokens * 0.204805) * 1.5)
+    _reserve_ai_neurons(estimate)
     try:
         response = requests.post(
-            "https://openrouter.ai/api/v1/chat/completions",
-            headers={
-                "Authorization": f"Bearer {key}",
-                "HTTP-Referer": "https://allmediatool.online",
-                "X-Title": "All Media Tools",
-            },
+            f"https://api.cloudflare.com/client/v4/accounts/{account_id}/ai/v1/chat/completions",
+            headers={"Authorization": f"Bearer {token}"},
             json={
-                "model": "meta-llama/llama-3.1-8b-instruct:free",
-                "max_tokens": 600,
+                "model": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+                "max_tokens": max_tokens,
+                "options": {"rejectIfBusy": True},
                 "messages": [
                     {"role": "system", "content": "You are a helpful, concise assistant inside All Media Tools."},
                     *[message.model_dump() for message in payload.messages],
@@ -143,7 +218,7 @@ def ai_chat(payload: AiChatRequest, request: Request):
         )
     except requests.RequestException:
         raise HTTPException(502, "The AI provider did not respond.") from None
-    if response.status_code == 429:
+    if response.status_code in (429, 503):
         raise HTTPException(429, "AI chat is busy. Try again shortly.")
     if not response.ok:
         raise HTTPException(502, "The AI provider could not complete this request.")
@@ -158,16 +233,35 @@ def ai_chat(payload: AiChatRequest, request: Request):
 
 @app.post("/api/ai/image")
 def ai_image(payload: AiImageRequest, request: Request):
-    _check_rate_limit(_ip_image_minute, _ip_image_day, request.client.host, IMAGE_LIMIT_MINUTE, IMAGE_LIMIT_DAY, "Image")
-    prompt = urllib.parse.quote(payload.prompt, safe="")
-    response = pollinations_request(
-        "GET", f"/image/{prompt}",
-        params={"model": "flux", "width": 768, "height": 768, "nologo": "true"},
-    )
+    _check_rate_limit(_request_ip(request), "image", IMAGE_LIMIT_MINUTE, IMAGE_LIMIT_DAY, "Image")
+    account_id, token = cloudflare_ai_config()
+    _reserve_ai_neurons(75)
+    try:
+        response = requests.post(
+            f"https://api.cloudflare.com/client/v4/accounts/{account_id}/ai/run/@cf/black-forest-labs/flux-1-schnell",
+            headers={"Authorization": f"Bearer {token}"},
+            json={"prompt": payload.prompt, "width": 512, "height": 512, "steps": 4},
+            timeout=(5, 90),
+            allow_redirects=False,
+        )
+    except requests.RequestException:
+        raise HTTPException(502, "Cloudflare AI did not respond. Try again shortly.") from None
+    if response.status_code in (429, 503):
+        raise HTTPException(429, "AI image generation is busy or the free daily allowance is used.")
+    if not response.ok:
+        raise HTTPException(502, "Cloudflare AI could not generate this image.")
     content_type = response.headers.get("Content-Type", "").split(";")[0]
-    if content_type not in {"image/jpeg", "image/png", "image/webp"} or not response.content:
+    image_bytes = response.content if content_type.startswith("image/") else b""
+    if not image_bytes:
+        try:
+            result = response.json().get("result", {})
+            image_bytes = base64.b64decode(result.get("image", ""), validate=True)
+            content_type = "image/jpeg"
+        except (ValueError, TypeError, AttributeError):
+            image_bytes = b""
+    if content_type not in {"image/jpeg", "image/png", "image/webp"} or not image_bytes:
         raise HTTPException(502, "The AI provider did not return an image.")
-    return Response(response.content, media_type=content_type, headers={"Cache-Control": "no-store"})
+    return Response(image_bytes, media_type=content_type, headers={"Cache-Control": "no-store"})
 
 
 DESKTOP_UA = (
@@ -698,12 +792,12 @@ async def video_convert(
             raise HTTPException(400, detail="Unsupported video format.")
         in_path = os.path.join(tmp_dir, f"input{in_ext}")
         orig_size = 0
-        max_bytes = 180 * 1024 * 1024
+        max_bytes = 40 * 1024 * 1024
         with open(in_path, "wb") as f:
             while chunk := await file.read(1024 * 1024):
                 orig_size += len(chunk)
                 if orig_size > max_bytes:
-                    raise HTTPException(status_code=413, detail="Video exceeds 180 MB upload limit.")
+                    raise HTTPException(status_code=413, detail="Video exceeds the 40 MB upload limit on this free service.")
                 f.write(chunk)
 
         base = sanitize_filename(os.path.splitext(file.filename)[0], "video")
@@ -1034,8 +1128,8 @@ async def process_pdf(
             if b:
                 raw_items.append((f.filename or "doc.pdf", b))
                 total_orig += len(b)
-                if total_orig > 100 * 1024 * 1024:
-                    raise HTTPException(413, detail="Combined files exceed 100 MB.")
+                if total_orig > 80 * 1024 * 1024:
+                    raise HTTPException(413, detail="Combined files exceed the 80 MB upload limit.")
 
     if act == "text_to_pdf":
         plain_text = (text_content or "").strip()
@@ -1526,6 +1620,22 @@ if os.path.isdir(_web_dir):
     @app.middleware("http")
     async def normalize_public_page_urls(request: Request, call_next):
         path = request.url.path
+        captcha_secret = os.getenv("TURNSTILE_SECRET_KEY", "").strip()
+        if (
+            captcha_secret
+            and path.startswith("/api/")
+            and path not in {"/api/health", "/api/captcha/verify"}
+            and not _verification_cookie_valid(request.cookies.get("amt_human", ""), captcha_secret)
+        ):
+            return JSONResponse(
+                {"detail": "Please verify you are human before using the tools."},
+                status_code=403,
+                headers={
+                    "Strict-Transport-Security": "max-age=31536000",
+                    "X-Content-Type-Options": "nosniff",
+                    "Referrer-Policy": "strict-origin-when-cross-origin",
+                },
+            )
         public_pages = {
             "/",
             "/compress-image/",
@@ -1550,7 +1660,13 @@ if os.path.isdir(_web_dir):
             target = None
         if target:
             return RedirectResponse(request.url.replace(path=target), status_code=308)
-        return await call_next(request)
+        response = await call_next(request)
+        response.headers.setdefault("Strict-Transport-Security", "max-age=31536000")
+        response.headers.setdefault("X-Content-Type-Options", "nosniff")
+        response.headers.setdefault("X-Frame-Options", "SAMEORIGIN")
+        response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+        response.headers.setdefault("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
+        return response
 
     app.mount("/tools", StaticFiles(directory=_web_dir, html=True), name="tools")
     app.mount("/", StaticFiles(directory=_web_dir, html=True), name="homepage")
