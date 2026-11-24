@@ -2232,6 +2232,8 @@ const BACKEND_URL = "";
   }
 
   function mountBackendImageTool(bodyEl, tool) {
+    // Bulk-capable actions: compress, resize, format conversions
+    const bulkOk = ["compress","resize","png_to_jpg","jpg_to_png","jpg_to_webp","webp_to_jpg","webp_to_png","png_to_webp"].includes(tool.action);
     let extra = "";
     if (tool.action === "compress") {
       extra = `<label class="text-xs flex items-center gap-2">Quality: <input id="bi-q" type="range" min="20" max="95" value="75" class="flex-1" /></label>`;
@@ -2241,12 +2243,12 @@ const BACKEND_URL = "";
     bodyEl.innerHTML = `
       <div class="space-y-3">
         <label class="flex flex-col items-center justify-center w-full h-24 rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 cursor-pointer">
-          <span class="text-xs font-bold text-slate-800 dark:text-slate-200">Select image (${tool.name})</span>
-          <span id="bi-lbl" class="text-[10px] text-slate-400 mt-0.5">Pillow + HEIC cloud engine</span>
-          <input id="bi-in" type="file" accept="image/*,.heic,.heif" class="hidden" />
+          <span class="text-xs font-bold text-slate-800 dark:text-slate-200">Select image${bulkOk ? "s" : ""} (${tool.name})</span>
+          <span id="bi-lbl" class="text-[10px] text-slate-400 mt-0.5">${bulkOk ? "Up to 10 images at once · Pillow cloud engine" : "Pillow + HEIC cloud engine"}</span>
+          <input id="bi-in" type="file" accept="image/*,.heic,.heif" ${bulkOk ? "multiple" : ""} class="hidden" />
         </label>
         ${extra}
-        <button id="bi-go" class="w-full py-3 rounded-2xl skin-bg text-white text-xs font-bold skin-shadow" disabled>Process Image</button>
+        <button id="bi-go" class="w-full py-3 rounded-2xl skin-bg text-white text-xs font-bold skin-shadow" disabled>Process Image${bulkOk ? "s" : ""}</button>
         <div id="bi-out"></div>
       </div>`;
 
@@ -2254,27 +2256,46 @@ const BACKEND_URL = "";
     const btn = document.getElementById("bi-go");
     const out = document.getElementById("bi-out");
     fileIn.addEventListener("change", () => {
-      const f = fileIn.files[0];
-      document.getElementById("bi-lbl").textContent = f ? `${f.name} (${formatBytes(f.size)})` : "Select image";
-      btn.disabled = !f;
+      const n = fileIn.files.length;
+      document.getElementById("bi-lbl").textContent = n > 1 ? `${n} images selected · will ZIP results` : n === 1 ? `${fileIn.files[0].name} (${formatBytes(fileIn.files[0].size)})` : (bulkOk ? "Up to 10 images at once" : "Select image");
+      btn.disabled = n === 0;
+      btn.textContent = n > 1 ? `Process All ${n} Images → ZIP` : `Process Image`;
     });
     btn.addEventListener("click", async () => {
-      const f = fileIn.files[0];
-      if (!f) return;
-      out.innerHTML = loadingSpinnerHtml(`Running ${tool.name} via Pillow...`);
+      const files = Array.from(fileIn.files);
+      if (!files.length) return;
+      const isBulk = files.length > 1;
+      out.innerHTML = loadingSpinnerHtml(isBulk ? `Processing ${files.length} images…` : `Running ${tool.name} via Pillow...`);
       try {
         ensureBackendUrlConfigured();
         const form = new FormData();
-        form.append("file", f);
         form.append("action", tool.action);
         if (document.getElementById("bi-q")) form.append("quality", document.getElementById("bi-q").value);
         if (document.getElementById("bi-w")) form.append("width", document.getElementById("bi-w").value);
-        const res = await fetch(apiEndpoint("/api/image-process"), { method: "POST", body: form });
+        let res;
+        if (isBulk && bulkOk) {
+          files.forEach(f => form.append("files", f));
+          res = await fetch(apiEndpoint("/api/bulk-image"), { method: "POST", body: form, signal: AbortSignal.timeout(120000) });
+        } else {
+          form.append("file", files[0]);
+          res = await fetch(apiEndpoint("/api/image-process"), { method: "POST", body: form, signal: AbortSignal.timeout(60000) });
+        }
         if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.detail || "Image processing failed."); }
         const blob = await res.blob();
-        const fname = parseDispositionFilename(res, `output_${tool.action}.png`);
-        const previewUrl = blob.type.startsWith("image/") ? URL.createObjectURL(blob) : null;
-        out.innerHTML = downloadResultCardHtml(blob, fname, f.size, previewUrl);
+        if (isBulk) {
+          const processed = res.headers.get("X-Processed-Count") || files.length;
+          const fname = `bulk_${tool.action}.zip`;
+          const url = URL.createObjectURL(blob);
+          out.innerHTML = `<div class="space-y-2 text-center">
+            <div class="text-3xl">✅</div>
+            <p class="text-sm font-bold text-slate-800 dark:text-slate-200">${processed} images processed!</p>
+            <a href="${url}" download="${fname}" class="btn-primary flex items-center justify-center gap-2 w-full py-2.5 rounded-xl font-semibold text-white bg-blue-600 hover:bg-blue-700 transition-colors no-underline text-sm">⬇️ Download ZIP (${processed} files)</a>
+          </div>`;
+        } else {
+          const fname = parseDispositionFilename(res, `output_${tool.action}.png`);
+          const previewUrl = blob.type.startsWith("image/") ? URL.createObjectURL(blob) : null;
+          out.innerHTML = downloadResultCardHtml(blob, fname, files[0].size, previewUrl);
+        }
       } catch (err) {
         out.innerHTML = errorBoxHtml(err.message);
       }

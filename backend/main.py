@@ -1858,3 +1858,111 @@ async def upscale_ai(
         raise HTTPException(status_code=503, detail=str(exc))
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Upscaling failed: {exc}")
+
+# ==============================================================================
+# 11. BULK IMAGE PROCESSING (/api/bulk-image)
+# ==============================================================================
+
+@app.post("/api/bulk-image")
+async def bulk_image_process(
+    request: Request,
+    files: list[UploadFile] = File(None),
+    action: str = Form("compress"),
+    quality: int = Form(75),
+    width: int = Form(1080),
+):
+    """Process up to 10 images at once; returns a ZIP of results."""
+    session = PublicSession(request)
+    if not files:
+        raise HTTPException(status_code=400, detail="No files uploaded.")
+    if len(files) > 10:
+        files = files[:10]  # cap at 10
+
+    action_map = {
+        "compress": "compress",
+        "resize": "resize",
+        "png_to_jpg": "png_to_jpg",
+        "jpg_to_png": "jpg_to_png",
+        "jpg_to_webp": "jpg_to_webp",
+        "webp_to_jpg": "webp_to_jpg",
+        "webp_to_png": "webp_to_png",
+        "png_to_webp": "png_to_webp",
+    }
+    if action not in action_map:
+        raise HTTPException(status_code=400, detail=f"Unsupported bulk action: {action}")
+
+    import zipfile
+    zip_buf = io.BytesIO()
+    processed = 0
+    errors = 0
+
+    with zipfile.ZipFile(zip_buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        for upload in files:
+            try:
+                raw = await upload.read()
+                if len(raw) > 20 * 1024 * 1024:
+                    errors += 1
+                    continue
+                img = Image.open(io.BytesIO(raw))
+                orig_name = upload.filename or "image"
+                stem = orig_name.rsplit(".", 1)[0]
+
+                # Apply action
+                if action == "compress":
+                    img = img.convert("RGB") if img.mode not in ("RGB", "L") else img
+                    if img.width > 1920:
+                        ratio = 1920 / img.width
+                        img = img.resize((1920, int(img.height * ratio)), Image.Resampling.LANCZOS)
+                    out_buf = io.BytesIO()
+                    img.save(out_buf, format="JPEG", quality=max(20, min(95, quality)), optimize=True)
+                    out_name = f"{stem}.jpg"
+                elif action == "resize":
+                    target_w = max(64, min(4096, int(width)))
+                    target_h = max(64, int(img.height * (target_w / float(img.width))))
+                    img = img.resize((target_w, target_h), Image.Resampling.LANCZOS)
+                    out_buf = io.BytesIO()
+                    fmt = "JPEG" if img.mode in ("RGB", "L") else "PNG"
+                    img.save(out_buf, format=fmt)
+                    out_name = f"{stem}_resized.{'jpg' if fmt == 'JPEG' else 'png'}"
+                elif action in ("png_to_jpg", "webp_to_jpg", "heic_to_jpg"):
+                    img = img.convert("RGB")
+                    out_buf = io.BytesIO()
+                    img.save(out_buf, format="JPEG", quality=90, optimize=True)
+                    out_name = f"{stem}.jpg"
+                elif action in ("jpg_to_png", "webp_to_png", "heic_to_png"):
+                    out_buf = io.BytesIO()
+                    img.save(out_buf, format="PNG", optimize=True)
+                    out_name = f"{stem}.png"
+                elif action in ("jpg_to_webp", "png_to_webp"):
+                    img = img.convert("RGBA") if img.mode == "P" else img
+                    out_buf = io.BytesIO()
+                    img.save(out_buf, format="WEBP", quality=85)
+                    out_name = f"{stem}.webp"
+                elif action == "webp_to_jpg":
+                    img = img.convert("RGB")
+                    out_buf = io.BytesIO()
+                    img.save(out_buf, format="JPEG", quality=90)
+                    out_name = f"{stem}.jpg"
+                else:
+                    continue
+
+                out_buf.seek(0)
+                zf.writestr(out_name, out_buf.read())
+                processed += 1
+            except Exception:
+                errors += 1
+                continue
+
+    if processed == 0:
+        raise HTTPException(status_code=422, detail="No images could be processed.")
+
+    zip_buf.seek(0)
+    return Response(
+        content=zip_buf.read(),
+        media_type="application/zip",
+        headers={
+            "Content-Disposition": f'attachment; filename="bulk_{action}.zip"',
+            "X-Processed-Count": str(processed),
+            "X-Error-Count": str(errors),
+        }
+    )
