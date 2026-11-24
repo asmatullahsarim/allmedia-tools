@@ -1,10 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <url><loc>https://allmediatool.online/</loc></url>
-  <url><loc>https://allmediatool.online/compress-image/</loc></url>
-  <url><loc>https://allmediatool.online/resize-image/</loc></url>
-  <url><loc>https://allmediatool.online/png-to-jpg/</loc></url>
-  <url><loc>https://allmediatool.online/jpg-to-pdf/</loc></url>
-  <url><loc>https://allmediatool.online/merge-pdf/</loc></url>
-  <url><loc>https://allmediatool.online/mp4-to-mp3/</loc></url>
+  <url><loc>https://allmediatool.online/</loc><lastmod>2026-11-24</lastmod><priority>1.0</priority><changefreq>weekly</changefreq></url>
+  <url><loc>https://allmediatool.online/compress-image/</loc><lastmod>2026-11-24</lastmod><priority>0.9</priority><changefreq>monthly</changefreq></url>
+  <url><loc>https://allmediatool.online/resize-image/</loc><lastmod>2026-11-24</lastmod><priority>0.9</priority><changefreq>monthly</changefreq></url>
+  <url><loc>https://allmediatool.online/png-to-jpg/</loc><lastmod>2026-11-24</lastmod><priority>0.9</priority><changefreq>monthly</changefreq></url>
+  <url><loc>https://allmediatool.online/jpg-to-pdf/</loc><lastmod>2026-11-24</lastmod><priority>0.9</priority><changefreq>monthly</changefreq></url>
+  <url><loc>https://allmediatool.online/merge-pdf/</loc><lastmod>2026-11-24</lastmod><priority>0.9</priority><changefreq>monthly</changefreq></url>
+  <url><loc>https://allmediatool.online/mp4-to-mp3/</loc><lastmod>2026-11-24</lastmod><priority>0.9</priority><changefreq>monthly</changefreq></url>
+  <url><loc>https://allmediatool.online/remove-background/</loc><lastmod>2026-11-24</lastmod><priority>0.9</priority><changefreq>monthly</changefreq></url>
+  <url><loc>https://allmediatool.online/blog/remove-bg-alternative/</loc><lastmod>2026-11-24</lastmod><priority>0.8</priority><changefreq>monthly</changefreq></url>
 </urlset>

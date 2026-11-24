@@ -1651,6 +1651,7 @@ const BACKEND_URL = "";
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ url: u, max_resolution: "1080p" }),
+            signal: AbortSignal.timeout(90000),
           });
           if (res.ok) data = await res.json();
           else {
@@ -1721,6 +1722,7 @@ const BACKEND_URL = "";
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ url: u }),
+          signal: AbortSignal.timeout(60000),
         });
         if (!res.ok) {
           const e = await res.json().catch(() => ({}));
@@ -1835,6 +1837,7 @@ const BACKEND_URL = "";
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ url: u }),
+          signal: AbortSignal.timeout(60000),
         });
         const j = await res.json();
         if (!res.ok) throw new Error(j.detail || "Transcript unavailable.");
@@ -1882,7 +1885,7 @@ const BACKEND_URL = "";
       const f = fileIn.files[0];
       const urlVal = document.getElementById("vc-url")?.value.trim() || "";
       if (!f && !urlVal) { out.innerHTML = errorBoxHtml("Upload a video file (or paste link for MP3)."); return; }
-      out.innerHTML = loadingSpinnerHtml(`Converting (${tool.name}) via FFmpeg...`);
+      out.innerHTML = loadingSpinnerHtml(`Converting (${tool.name}) via FFmpeg… may take 20–60 s on first use.`);
       try {
         ensureBackendUrlConfigured();
         const form = new FormData();
@@ -1895,7 +1898,7 @@ const BACKEND_URL = "";
         if (document.getElementById("vc-width")) form.append("width", document.getElementById("vc-width").value);
         if (document.getElementById("vc-preset")) form.append("preset", document.getElementById("vc-preset").value);
 
-        const res = await fetch(apiEndpoint("/api/video-convert"), { method: "POST", body: form });
+        const res = await fetch(apiEndpoint("/api/video-convert"), { method: "POST", body: form, signal: AbortSignal.timeout(120000) });
         if (!res.ok) {
           const e = await res.json().catch(() => ({}));
           throw new Error(e.detail || `Conversion failed (${res.status})`);
