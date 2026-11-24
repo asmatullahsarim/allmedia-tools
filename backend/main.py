@@ -10,7 +10,7 @@ import threading
 import time
 import urllib.parse
 import zipfile
-from typing import Any
+from typing import Any, Literal
 
 import cv2
 import fitz  # PyMuPDF
@@ -20,13 +20,13 @@ import yt_dlp
 from bs4 import BeautifulSoup
 from fastapi import BackgroundTasks, FastAPI, File, Form, HTTPException, Query, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, Response, StreamingResponse
+from fastapi.responses import FileResponse, RedirectResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from security import PublicSession, validate_public_url, read_upload, read_remote_image, UploadLimitMiddleware
 from PIL import Image, ImageEnhance, ImageFilter, ImageOps
 from pillow_heif import register_heif_opener
 from pypdf import PdfReader, PdfWriter
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from rembg import new_session, remove
 from reportlab.lib.colors import Color
 from reportlab.pdfgen import canvas
@@ -35,9 +35,9 @@ from reportlab.pdfgen import canvas
 register_heif_opener()
 
 app = FastAPI(
-    title="AllMedia Tools API",
+    title="All Media Tools API",
     version="4.0.0",
-    description="FastAPI backend and static website for AllMedia Tools.",
+    description="FastAPI backend and static website for All Media Tools.",
 )
 
 app.add_middleware(
@@ -55,6 +55,91 @@ app.add_middleware(
 )
 
 app.add_middleware(UploadLimitMiddleware)
+
+class AiMessage(BaseModel):
+    role: Literal["user", "assistant"]
+    content: str = Field(min_length=1, max_length=4000)
+
+
+class AiChatRequest(BaseModel):
+    messages: list[AiMessage] = Field(min_length=1, max_length=12)
+
+
+class AiImageRequest(BaseModel):
+    prompt: str = Field(min_length=1, max_length=1000)
+
+
+def pollinations_request(method: str, path: str, **kwargs):
+    key = os.getenv("POLLINATIONS_API_KEY", "").strip()
+    if not key:
+        raise HTTPException(503, "AI generation is temporarily unavailable.")
+    try:
+        response = requests.request(
+            method,
+            f"https://gen.pollinations.ai{path}",
+            headers={"Authorization": f"Bearer {key}"},
+            timeout=(5, 95),
+            allow_redirects=False,
+            **kwargs,
+        )
+    except requests.RequestException:
+        raise HTTPException(502, "The AI provider did not respond. Try again shortly.") from None
+    if response.status_code in (401, 402, 403):
+        raise HTTPException(503, "AI generation is temporarily unavailable.")
+    if response.status_code == 429:
+        raise HTTPException(429, "AI generation is busy. Try again shortly.")
+    if not 200 <= response.status_code < 300:
+        raise HTTPException(502, "The AI provider could not complete this request.")
+    return response
+
+
+@app.post("/api/ai/chat")
+def ai_chat(payload: AiChatRequest):
+    key = os.getenv("GROQ_API_KEY", "").strip()
+    if not key:
+        raise HTTPException(503, "AI chat is temporarily unavailable.")
+    try:
+        response = requests.post(
+            "https://api.groq.com/openai/v1/chat/completions",
+            headers={"Authorization": f"Bearer {key}"},
+            json={
+                "model": "qwen/qwen3.8-27b",
+                "max_completion_tokens": 600,
+                "messages": [
+                    {"role": "system", "content": "You are a helpful, concise assistant inside All Media Tools."},
+                    *[message.model_dump() for message in payload.messages],
+                ],
+            },
+            timeout=(5, 25),
+            allow_redirects=False,
+        )
+    except requests.RequestException:
+        raise HTTPException(502, "The AI provider did not respond.") from None
+    if response.status_code == 429:
+        raise HTTPException(429, "AI chat is busy. Try again shortly.")
+    if not response.ok:
+        raise HTTPException(502, "The AI provider could not complete this request.")
+    try:
+        answer = response.json()["choices"][0]["message"]["content"]
+    except (ValueError, KeyError, IndexError, TypeError):
+        raise HTTPException(502, "The AI provider returned an invalid reply.") from None
+    if not isinstance(answer, str) or not answer.strip():
+        raise HTTPException(502, "The AI provider returned an empty reply.")
+    return {"answer": answer}
+
+
+@app.post("/api/ai/image")
+def ai_image(payload: AiImageRequest):
+    prompt = urllib.parse.quote(payload.prompt, safe="")
+    response = pollinations_request(
+        "GET", f"/image/{prompt}",
+        params={"model": "flux", "width": 768, "height": 768, "nologo": "true"},
+    )
+    content_type = response.headers.get("Content-Type", "").split(";")[0]
+    if content_type not in {"image/jpeg", "image/png", "image/webp"} or not response.content:
+        raise HTTPException(502, "The AI provider did not return an image.")
+    return Response(response.content, media_type=content_type, headers={"Cache-Control": "no-store"})
+
 
 DESKTOP_UA = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -197,7 +282,6 @@ class ZipImagesPayload(BaseModel):
 # ==============================================================================
 
 
-@app.get("/")
 @app.get("/api/health")
 def health():
     return {
@@ -1156,7 +1240,7 @@ async def process_pdf(
         elif act == "header_footer":
             reader = PdfReader(io.BytesIO(first_bytes))
             writer = PdfWriter()
-            hf_str = (watermark_text or "AllMedia Tools Document").strip()[:60]
+            hf_str = (watermark_text or "All Media Tools Document").strip()[:60]
             for page in reader.pages:
                 w = float(page.mediabox.width)
                 h = float(page.mediabox.height)
@@ -1399,4 +1483,31 @@ def extract_thumbnail_or_dp(req: UrlPayload, request: Request):
 # Mount after API routes. Root stays a health check; the tool suite lives at /tools/.
 _web_dir = os.path.join(os.path.dirname(__file__), "web")
 if os.path.isdir(_web_dir):
+    @app.get("/robots.txt", include_in_schema=False)
+    def robots_txt():
+        return FileResponse(os.path.join(_web_dir, "robots.txt"), media_type="text/plain")
+
+    @app.get("/sitemap.xml", include_in_schema=False)
+    def sitemap_xml():
+        sitemap_path = os.path.join(_web_dir, "sitemap.xml")
+        if not os.path.isfile(sitemap_path):
+            raise HTTPException(status_code=404, detail="Sitemap is generated after the public HTTPS URL is configured.")
+        return FileResponse(sitemap_path, media_type="application/xml")
+
+    @app.middleware("http")
+    async def normalize_public_page_urls(request: Request, call_next):
+        path = request.url.path
+        if path == "/tools" or path == "/tools/index.html":
+            target = "/tools/"
+        elif path.startswith("/tools/") and path.endswith("/index.html"):
+            target = path[:-len("index.html")]
+        elif path.startswith("/tools/") and not path.endswith("/") and "." not in path.rsplit("/", 1)[-1]:
+            target = f"{path}/"
+        else:
+            target = None
+        if target:
+            return RedirectResponse(request.url.replace(path=target), status_code=308)
+        return await call_next(request)
+
     app.mount("/tools", StaticFiles(directory=_web_dir, html=True), name="tools")
+    app.mount("/", StaticFiles(directory=_web_dir, html=True), name="homepage")
