@@ -297,8 +297,7 @@ def verify_human(payload: CaptchaVerifyRequest, request: Request, response: Resp
         raise HTTPException(502, "Verification could not be checked. Please try again.") from None
     if (
         verification.get("success") is not True
-        or verification.get("hostname") not in {
-            "allmediatool.online", "www.allmediatool.online"        }
+        or verification.get("hostname") not in {            "allmediatool.online", "www.allmediatool.online"        }
         or verification.get("action") != "site_access"
     ):
         raise HTTPException(403, "Verification failed. Please try again.")
@@ -598,7 +597,6 @@ def parse_hex_color(hex_str: str) -> tuple[int, int, int]:
         return (int(cleaned[0:2], 16), int(cleaned[2:4], 16), int(cleaned[4:6], 16))
     except ValueError:
         return (255, 255, 255)
-
 class UrlPayload(BaseModel):
     url: str
     max_resolution: str = "1080p"
@@ -897,8 +895,7 @@ def extract_images(req: UrlPayload, request: Request):
     return {"title": title, "platform": host, "count": len(enriched), "images": enriched}
 
 
-@app.get("/api/images/proxy")def proxy_image_download(url: str = Query(...), filename: str = Query("image.jpg")):
-    target = validate_http_url(url)
+@app.get("/api/images/proxy")def proxy_image_download(url: str = Query(...), filename: str = Query("image.jpg")):    target = validate_http_url(url)
     session = build_requests_session()
     parsed = urllib.parse.urlparse(target)
     try:
@@ -1161,7 +1158,7 @@ async def process_background(
     return Response(
         content=data,
         media_type=mime,
-        headers={"Content-Disposition": f'attachment; filename="{base}_{act}.{ext}'},
+        headers={"Content-Disposition": f'attachment; filename="{base}_{act}.{ext}"'},
     )
 
 
@@ -1197,8 +1194,7 @@ async def remove_watermark(
     cleaned = cv2.inpaint(src, binary_mask, max(2, min(15, radius)), cv2.INPAINT_TELEA)
 
     ok, encoded = cv2.imencode(".png", cleaned)
-    if not ok:
-        raise HTTPException(status_code=500, detail="Failed to encode cleaned PNG.")
+    if not ok:        raise HTTPException(status_code=500, detail="Failed to encode cleaned PNG.")
 
     base = sanitize_filename(os.path.splitext(image.filename or "photo")[0], "photo")
     return Response(
@@ -1497,8 +1493,7 @@ async def process_pdf(
                         xref = img_info[0]
                         extracted = doc.extract_image(xref)
                         if extracted and extracted.get("image"):
-                            count += 1
-                            iext = extracted.get("ext", "png")
+                            count += 1                            iext = extracted.get("ext", "png")
                             zf.writestr(f"pdf_img_{count:03d}.{iext}", extracted["image"])
             doc.close()
             if count == 0:
@@ -1797,8 +1792,7 @@ def extract_thumbnail_or_dp(req: UrlPayload, request: Request):
                 "label": lbl,
                 "url": img_u,
                 "download_url": f"{base_url}/api/images/proxy?url={urllib.parse.quote(img_u, safe='')}&filename={fname}",
-            }
-            for lbl, img_u, fname in variants
+            }            for lbl, img_u, fname in variants
         ]
         return {"type": "youtube_thumbnail", "title": f"YouTube Video ({vid})", "items": items}
 
@@ -2097,8 +2091,7 @@ async def bulk_image_process(
                     img = img.convert("RGB") if img.mode not in ("RGB", "L") else img
                     if img.width > 1920:
                         ratio = 1920 / img.width
-                        img = img.resize((1920, int(img.height * ratio)), Image.Resampling.LANCZOS)
-                    out_buf = io.BytesIO()
+                        img = img.resize((1920, int(img.height * ratio)), Image.Resampling.LANCZOS)                    out_buf = io.BytesIO()
                     img.save(out_buf, format="JPEG", quality=max(20, min(95, quality)), optimize=True)
                     out_name = f"{stem}.jpg"
                 elif action == "resize":
