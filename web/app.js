@@ -1,5 +1,3 @@
-Warning: truncated output (original token count: 36087)
-Total output lines: 2606
 
 // ============================================================================
 // Configure an optional separate All Media Tools API origin here.
@@ -297,8 +295,7 @@ const BACKEND_URL = "";
       if (document.body) document.body.setAttribute("data-skin", skinId);
       safeStorageSet(STORAGE_KEYS.SKIN, skinId);
       document.querySelectorAll(".skin-check").forEach((el) => {
-        el.classList.toggle("hidden", el.getAttribute("data-check") !== skinId);
-      });
+        el.classList.toggle("hidden", el.getAttribute("data-check") !== skinId);      });
       if (skinPopover) skinPopover.classList.add("hidden");
       if (skinName) showToast(`Skin changed to ${skinName}`);
     } catch (_) {}
@@ -447,7 +444,7 @@ const BACKEND_URL = "";
     const detection = detectLinkSource(value);
     const validHandle = /^@[a-z0-9._]+$/i.test(value);
     if (smartDownloadBtn) {
-      smartDownloadBtn.hidden = !(value && (detection.kind !== "invalid" || validHandle));
+      smartDownloadBtn.classList.toggle("hidden", !(value && (detection.kind !== "invalid" || validHandle)));
       smartDownloadBtn.disabled = !(value && (detection.kind !== "invalid" || validHandle));
       smartDownloadBtn.textContent = detection.kind === "image"
         ? "Open image downloader"
@@ -597,8 +594,7 @@ const BACKEND_URL = "";
     event.preventDefault();
     const status = document.getElementById("auth-status");
     const email = document.getElementById("auth-email")?.value.trim();
-    const password = document.getElementById("auth-password")?.value || "";
-    try {
+    const password = document.getElementById("auth-password")?.value || "";    try {
       status.textContent = createAccountMode ? "Creating your account…" : "Signing in…";
       if (createAccountMode) await window.AllMediaAuth?.createAccount(email, password);
       else await window.AllMediaAuth?.signInWithEmail(email, password);
@@ -897,8 +893,7 @@ const BACKEND_URL = "";
 
   window.resetFilters = function resetFilters() {
     liveSearchInput.value = "";
-    searchQuery = "";
-    clearSearchBtn.classList.add("hidden");
+    searchQuery = "";    clearSearchBtn.classList.add("hidden");
     window.selectCategoryFilter("all", false);
   };
 
@@ -1197,8 +1192,7 @@ const BACKEND_URL = "";
       btn.disabled = !f;
     });
 
-    btn.addEventListener("click", () => {
-      const f = fileIn.files[0];
+    btn.addEventListener("click", () => {      const f = fileIn.files[0];
       if (!f) return;
       out.innerHTML = loadingSpinnerHtml("Rendering on Canvas...");
       const base = f.name.replace(/\.[^.]+$/, "");
@@ -1497,8 +1491,7 @@ const BACKEND_URL = "";
       out.querySelectorAll(".v-tier-btn").forEach((b) => {
         b.addEventListener("click", () => {
           const dl = b.getAttribute("data-dl");
-          const q = b.getAttribute("data-q");
-          triggerDirectDownload(dl, `video_${q}.mp4`);
+          const q = b.getAttribute("data-q");          triggerDirectDownload(dl, `video_${q}.mp4`);
         });
       });
     }
@@ -1797,8 +1790,7 @@ const BACKEND_URL = "";
         <p class="font-semibold text-slate-700 dark:text-slate-200 mb-1">Drop image here or click to upload</p>
         <p class="text-sm text-slate-500 dark:text-slate-400">JPG, PNG, WEBP — max 10 MB</p>
         <input id="upscale-file" type="file" accept="image/*" class="hidden" />
-      </div>
-      <div class="flex items-center gap-3">
+      </div>      <div class="flex items-center gap-3">
         <span class="text-sm font-medium text-slate-600 dark:text-slate-300">Upscale factor:</span>
         <label class="flex items-center gap-1.5 cursor-pointer">
           <input type="radio" name="upscale-factor" value="2" checked class="accent-blue-500" />
@@ -2097,8 +2089,7 @@ const BACKEND_URL = "";
     const accept = tool.action === "jpg_to_pdf" ? "image/*" : isTextPdf ? ".txt,text/plain" : "application/pdf";
     bodyEl.innerHTML = `
       <div class="space-y-3">
-        <label class="flex flex-col items-center justify-center w-full h-24 rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 cursor-pointer">
-          <span class="text-xs font-bold text-slate-800 dark:text-slate-200">${isTextPdf ? "Optional: Upload .TXT file" : tool.multi ? "Select multiple files" : "Select PDF file"}</span>
+        <label class="flex flex-col items-center justify-center w-full h-24 rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 cursor-pointer">          <span class="text-xs font-bold text-slate-800 dark:text-slate-200">${isTextPdf ? "Optional: Upload .TXT file" : tool.multi ? "Select multiple files" : "Select PDF file"}</span>
           <span id="pdf-lbl" class="text-[10px] text-slate-400 mt-0.5">PyPDF + PyMuPDF + ReportLab</span>
           <input id="pdf-in" type="file" accept="${accept}" ${tool.multi ? "multiple" : ""} class="hidden" />
         </label>
