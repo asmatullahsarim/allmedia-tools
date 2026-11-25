@@ -448,6 +448,13 @@ _u2netp_lock = threading.Lock()
 _u2netp_session = None
 _media_job_lock = threading.Lock()
 
+BG_MAX_UPLOAD_BYTES = 10 * 1024 * 1024
+BG_MAX_IMAGE_PIXELS = 16_000_000
+BG_MAX_IMAGE_SIDE = 512
+VIDEO_MAX_FILE_BYTES = 100 * 1024 * 1024
+VIDEO_MAX_DURATION_SECONDS = 10 * 60
+VIDEO_MAX_HEIGHT = 720
+
 
 def get_u2netp_session():
     """Lazy-load a low-memory u2netp ONNX session for small Render instances."""
@@ -631,6 +638,13 @@ def health():
 # ==============================================================================
 
 
+def _video_download_filter(info: dict[str, Any], *, incomplete: bool) -> str | None:
+    duration = info.get("duration")
+    if duration and duration > VIDEO_MAX_DURATION_SECONDS:
+        return "Free downloads are limited to videos up to 10 minutes."
+    return None
+
+
 @app.post("/api/video-download")
 @app.post("/download-video")
 @app.post("/api/fetch-info")
@@ -669,6 +683,9 @@ def fetch_video_info(req: UrlPayload, request: Request):
     if "entries" in info and info["entries"]:
         info = info["entries"][0]
 
+    duration_seconds = info.get("duration")
+    if duration_seconds and duration_seconds > VIDEO_MAX_DURATION_SECONDS:
+        raise HTTPException(status_code=413, detail="Free downloads are limited to videos up to 10 minutes.")
     formats = info.get("formats") or []
     encoded = urllib.parse.quote(url, safe="")
     base_url = str(request.base_url).rstrip("/")
@@ -680,10 +697,11 @@ def fetch_video_info(req: UrlPayload, request: Request):
         "title": info.get("title") or "Video",
         "platform": info.get("extractor_key") or "Web",
         "thumbnail": info.get("thumbnail"),
-        "duration": format_duration(info.get("duration")),
+        "duration": format_duration(duration_seconds),
+        "max_size_mb": 100,
+        "max_quality": "720p",
         "standard_url": f"{base_url}/api/video/download?url={encoded}&quality=480",
         "clean_hd_url": f"{base_url}/api/video/download?url={encoded}&quality=720",
-        "full_hd_url": f"{base_url}/api/video/download?url={encoded}&quality=1080",
         "direct_480p_preview": std_url,
         "direct_720p_preview": hd_url,
     }
@@ -691,6 +709,7 @@ def fetch_video_info(req: UrlPayload, request: Request):
 
 def _merge_and_stream_video_unlocked(url: str, max_height: int, background_tasks: BackgroundTasks) -> FileResponse:
     url = validate_http_url(url)
+    max_height = min(max(240, int(max_height)), VIDEO_MAX_HEIGHT)
     tmp_dir = create_temp_dir("vid_")
     out_tpl = os.path.join(tmp_dir, "video.%(ext)s")
     ydl_opts: dict[str, Any] = {
@@ -702,7 +721,9 @@ def _merge_and_stream_video_unlocked(url: str, max_height: int, background_tasks
         "extractor_retries": 1,
         "fragment_retries": 1,
         "cachedir": False,
-        "format": f"bestvideo[height<={max_height}]+bestaudio/best[height<={max_height}]/best",
+        "format": f"bestvideo[height<={max_height}]+bestaudio/best[height<={max_height}]",
+        "max_filesize": VIDEO_MAX_FILE_BYTES,
+        "match_filter": _video_download_filter,
         "merge_output_format": "mp4",
         "outtmpl": out_tpl,
         # Avoid spawning a separate JS challenge runtime on the 512 MB free worker.
@@ -730,11 +751,18 @@ def _merge_and_stream_video_unlocked(url: str, max_height: int, background_tasks
             safe_title = sanitize_filename(info.get("title") or "video")
     except Exception as exc:
         cleanup_dir(tmp_dir)
-        raise HTTPException(status_code=400, detail=f"Video download failed: {exc}")
+        message = str(exc).lower()
+        if "10 minutes" in message or "max-filesize" in message or "larger than" in message:
+            raise HTTPException(status_code=413, detail="Free video limit: 10 minutes, 720p, and 100 MB per download.") from None
+        raise HTTPException(status_code=400, detail="Video download failed. Check the link and try a public video under the free limits.") from None
 
     if not os.path.exists(final_path):
         cleanup_dir(tmp_dir)
         raise HTTPException(status_code=500, detail="Merged video output not produced.")
+
+    if os.path.getsize(final_path) > VIDEO_MAX_FILE_BYTES:
+        cleanup_dir(tmp_dir)
+        raise HTTPException(status_code=413, detail="The processed video is over the 100 MB free download limit.")
 
     media_mime = "video/webm" if final_path.lower().endswith(".webm") else "video/mp4"
     out_ext = "webm" if final_path.lower().endswith(".webm") else "mp4"
@@ -755,14 +783,14 @@ def _merge_and_stream_video(url: str, max_height: int, background_tasks: Backgro
 def download_video_quality(
     background_tasks: BackgroundTasks,
     url: str = Query(...),
-    quality: int = Query(720, ge=240, le=2160),
+    quality: int = Query(720, ge=240, le=VIDEO_MAX_HEIGHT),
 ):
     return _merge_and_stream_video(url, quality, background_tasks)
 
 
 @app.get("/api/download-1080p")
 def download_1080p(background_tasks: BackgroundTasks, url: str = Query(...)):
-    return _merge_and_stream_video(url, 1080, background_tasks)
+    raise HTTPException(status_code=410, detail="1080p downloads are disabled on the free worker. Choose 720p or lower.")
 
 
 # ==============================================================================
@@ -1122,7 +1150,9 @@ def _process_background_image_bytes(raw: bytes, action: str, bg_color: str, blur
     except Exception:
         raise HTTPException(status_code=400, detail="Could not read this image. Use a valid JPG, PNG, or WebP file.") from None
 
-    orig.thumbnail((640, 640), Image.Resampling.LANCZOS)
+    if orig.width * orig.height > BG_MAX_IMAGE_PIXELS:
+        raise HTTPException(status_code=413, detail="Use an image with 16 megapixels or less for background removal.")
+    orig.thumbnail((BG_MAX_IMAGE_SIDE, BG_MAX_IMAGE_SIDE), Image.Resampling.LANCZOS)
     orig = orig.convert("RGBA")
     try:
         session = get_u2netp_session()
@@ -1161,8 +1191,8 @@ async def process_background(
     raw = await read_upload(file)
     if not raw:
         raise HTTPException(status_code=400, detail="Upload an image first.")
-    if len(raw) > 20 * 1024 * 1024:
-        raise HTTPException(status_code=413, detail="Upload an image under 20 MB.")
+    if len(raw) > BG_MAX_UPLOAD_BYTES:
+        raise HTTPException(status_code=413, detail="Background removal supports images up to 10 MB on the free server.")
     if not _media_job_lock.acquire(blocking=False):
         raise HTTPException(status_code=429, detail="The free media worker is busy. Please retry in 20 seconds.")
     try:
