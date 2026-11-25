@@ -1483,8 +1483,8 @@ const BACKEND_URL = "";
             </div>
           </div>
           <div class="grid grid-cols-1 gap-2">
-            ${(data.direct_480p_url || data.standard_url) ? `<button data-dl="${escapeHtml(data.direct_480p_url || data.standard_url)}" data-q="${Number(data.standard_quality) || 480}p" class="v-tier-btn w-full py-2.5 px-3 rounded-xl bg-blue-600 text-white text-xs font-bold flex justify-between"><span>${Number(data.standard_quality) || 480}p ${data.direct_480p_url ? "Direct MP4" : "Standard MP4"}</span><span>Download ↓</span></button>` : ""}
-            ${(data.direct_720p_url || data.clean_hd_url) ? `<button data-dl="${escapeHtml(data.direct_720p_url || data.clean_hd_url)}" data-q="${Number(data.hd_quality) || 720}p" class="v-tier-btn w-full py-2.5 px-3 rounded-xl bg-emerald-600 text-white text-xs font-bold flex justify-between"><span>${Number(data.hd_quality) || 720}p ${data.direct_720p_url ? "Direct MP4" : "HD MP4"}</span><span>Download ↓</span></button>` : ""}
+            ${(data.direct_480p_url || data.standard_url) ? `<button data-dl="${escapeHtml(data.direct_480p_url || data.standard_url)}" data-q="${Number(data.standard_quality) || 480}p" class="v-tier-btn w-full py-2.5 px-3 rounded-xl bg-blue-600 text-white text-xs font-bold flex justify-between"><span>${data.direct_480p_url ? `${Number(data.standard_quality) || 480}p Direct MP4` : "480p Standard MP4"}</span><span>Download ↓</span></button>` : ""}
+            ${(data.direct_720p_url || data.clean_hd_url) ? `<button data-dl="${escapeHtml(data.direct_720p_url || data.clean_hd_url)}" data-q="${Number(data.hd_quality) || 720}p" class="v-tier-btn w-full py-2.5 px-3 rounded-xl bg-emerald-600 text-white text-xs font-bold flex justify-between"><span>${data.direct_720p_url ? `${Number(data.hd_quality) || 720}p Direct MP4` : "Up to 720p HD MP4"}</span><span>Download ↓</span></button>` : ""}
           </div>
         </div>`;
 

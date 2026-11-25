@@ -684,7 +684,7 @@ def fetch_video_info(req: UrlPayload, request: Request):
         # avoids buffering/merging the full file on the memory-limited worker.
         "direct_downloads": bool(std_format and std_format.get("url")),
         "standard_quality": int((std_format or {}).get("height") or 480),
-        "hd_quality": int((hd_format or {}).get("height") or 480),
+        "hd_quality": int((hd_format or {}).get("height") or 720),
         "standard_url": f"{base_url}/api/video/download?url={encoded}&quality=480",
         "clean_hd_url": f"{base_url}/api/video/download?url={encoded}&quality=720",
         "direct_480p_url": std_url if std_format else None,
