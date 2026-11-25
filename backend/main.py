@@ -28,6 +28,7 @@ from fastapi import BackgroundTasks, FastAPI, File, Form, HTTPException, Query, 
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.concurrency import run_in_threadpool
 from security import PublicSession, validate_public_url, read_upload, read_remote_image, UploadLimitMiddleware
 from PIL import Image, ImageEnhance, ImageFilter, ImageOps
 from pillow_heif import register_heif_opener
@@ -297,8 +298,7 @@ def verify_human(payload: CaptchaVerifyRequest, request: Request, response: Resp
     if (
         verification.get("success") is not True
         or verification.get("hostname") not in {
-            "allmediatool.online", "www.allmediatool.online"
-        }
+            "allmediatool.online", "www.allmediatool.online"        }
         or verification.get("action") != "site_access"
     ):
         raise HTTPException(403, "Verification failed. Please try again.")
@@ -445,6 +445,7 @@ os.makedirs(WORK_TMP_DIR, exist_ok=True)
 
 _u2netp_lock = threading.Lock()
 _u2netp_session = None
+_bg_remove_lock = threading.Lock()
 
 
 def get_u2netp_session():
@@ -597,7 +598,6 @@ def parse_hex_color(hex_str: str) -> tuple[int, int, int]:
         return (int(cleaned[0:2], 16), int(cleaned[2:4], 16), int(cleaned[4:6], 16))
     except ValueError:
         return (255, 255, 255)
-
 
 class UrlPayload(BaseModel):
     url: str
@@ -897,8 +897,7 @@ def extract_images(req: UrlPayload, request: Request):
     return {"title": title, "platform": host, "count": len(enriched), "images": enriched}
 
 
-@app.get("/api/images/proxy")
-def proxy_image_download(url: str = Query(...), filename: str = Query("image.jpg")):
+@app.get("/api/images/proxy")def proxy_image_download(url: str = Query(...), filename: str = Query("image.jpg")):
     target = validate_http_url(url)
     session = build_requests_session()
     parsed = urllib.parse.urlparse(target)
@@ -1091,6 +1090,50 @@ async def video_convert(
 # ==============================================================================
 
 
+def _process_background_image_bytes(raw: bytes, action: str, bg_color: str, blur_radius: int) -> tuple[bytes, str, str, str]:
+    try:
+        orig = ImageOps.exif_transpose(Image.open(io.BytesIO(raw)))
+    except Exception:
+        raise HTTPException(status_code=400, detail="Could not read this image. Use a valid JPG, PNG, or WebP file.") from None
+
+    # Keep peak memory lower on the free 512 MB service.
+    orig.thumbnail((640, 640), Image.Resampling.LANCZOS)
+    orig = orig.convert("RGBA")
+    try:
+        session = get_u2netp_session()
+        from rembg import remove
+        fg_cutout = remove(orig, session=session).convert("RGBA")
+    except MemoryError:
+        raise HTTPException(
+            status_code=503,
+            detail="Background removal ran out of memory. Try a smaller image (under 2 MB).",
+        ) from None
+    except Exception:
+        raise HTTPException(
+            status_code=503,
+            detail="The background removal model could not process this image. Please retry with a smaller JPG or PNG.",
+        ) from None
+
+    act = (action or "remove").lower().strip()
+    if act == "change_color":
+        try:
+            rgb = parse_hex_color(bg_color)
+        except Exception:
+            raise HTTPException(status_code=400, detail="Choose a valid background color.") from None
+        bg_layer = Image.new("RGBA", fg_cutout.size, (*rgb, 255))
+        result_img = Image.alpha_composite(bg_layer, fg_cutout).convert("RGB")
+    elif act == "blur":
+        safe_blur = max(3, min(35, int(blur_radius)))
+        blurred_bg = orig.filter(ImageFilter.GaussianBlur(radius=safe_blur))
+        result_img = Image.alpha_composite(blurred_bg, fg_cutout)
+    else:
+        result_img = fg_cutout
+
+    out_buf = io.BytesIO()
+    result_img.save(out_buf, format="PNG")
+    return out_buf.getvalue(), "image/png", act, "png"
+
+
 @app.post("/api/bg-remove")
 @app.post("/remove-bg")
 @app.post("/api/ai/remove-bg")
@@ -1101,49 +1144,24 @@ async def process_background(
     blur_radius: int = Form(14),
 ):
     raw = await read_upload(file)
-    if not raw or len(raw) > 20 * 1024 * 1024:
-        raise HTTPException(status_code=400, detail="Upload an image under 20 MB.")
-
+    if not raw:
+        raise HTTPException(status_code=400, detail="Upload an image first.")
+    if len(raw) > 20 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="Upload an image under 20 MB.")
+    if not _bg_remove_lock.acquire(blocking=False):
+        raise HTTPException(status_code=429, detail="Background removal is busy. Please wait 20 seconds and try again.")
     try:
-        orig = ImageOps.exif_transpose(Image.open(io.BytesIO(raw)))
-        # Bound peak ONNX memory on the free 512 MB service. Larger uploads are
-        # still accepted; their processing copy is safely reduced to 1280 px.
-        orig.thumbnail((800, 800), Image.Resampling.LANCZOS)
-        orig = orig.convert("RGBA")
-        session = get_u2netp_session()
-        from rembg import remove
-        fg_cutout = remove(orig, session=session).convert("RGBA")
-
-        act = (action or "remove").lower().strip()
-        if act == "change_color":
-            rgb = parse_hex_color(bg_color)
-            bg_layer = Image.new("RGBA", fg_cutout.size, (*rgb, 255))
-            result_img = Image.alpha_composite(bg_layer, fg_cutout).convert("RGB")
-            fmt, mime, ext = "PNG", "image/png", "png"
-        elif act == "blur":
-            safe_blur = max(3, min(35, int(blur_radius)))
-            blurred_bg = orig.filter(ImageFilter.GaussianBlur(radius=safe_blur))
-            result_img = Image.alpha_composite(blurred_bg, fg_cutout)
-            fmt, mime, ext = "PNG", "image/png", "png"
-        else:
-            result_img = fg_cutout
-            fmt, mime, ext = "PNG", "image/png", "png"
-
-        out_buf = io.BytesIO()
-        result_img.save(out_buf, format=fmt)
-    except MemoryError:
-        raise HTTPException(
-            status_code=503,
-            detail="Background removal ran out of memory. Try a smaller image (under 2 MB) and retry.",
+        data, mime, act, ext = await run_in_threadpool(
+            _process_background_image_bytes, raw, action, bg_color, blur_radius
         )
-    except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"AI background processing failed: {exc}")
+    finally:
+        _bg_remove_lock.release()
 
     base = sanitize_filename(os.path.splitext(file.filename or "photo")[0], "photo")
     return Response(
-        content=out_buf.getvalue(),
+        content=data,
         media_type=mime,
-        headers={"Content-Disposition": f'attachment; filename="{base}_{act}.{ext}"'},
+        headers={"Content-Disposition": f'attachment; filename="{base}_{act}.{ext}'},
     )
 
 
@@ -1197,8 +1215,7 @@ async def remove_watermark(
 
 @app.post("/api/image-process")
 @app.post("/api/compress/image")
-async def process_image(
-    file: UploadFile = File(...),
+async def process_image(    file: UploadFile = File(...),
     action: str = Form("compress"),
     quality: int = Form(75),
     output_format: str = Form("webp"),
@@ -1497,8 +1514,7 @@ async def process_pdf(
                 page.rotate(deg)
                 writer.add_page(page)
             out_buf = io.BytesIO()
-            writer.write(out_buf)
-            out_bytes = out_buf.getvalue()
+            writer.write(out_buf)            out_bytes = out_buf.getvalue()
             mime, ext = "application/pdf", "pdf"
 
         elif act == "rearrange":
@@ -1797,8 +1813,7 @@ def extract_thumbnail_or_dp(req: UrlPayload, request: Request):
                     timeout=12,
                 )
                 if api_res.ok:
-                    user_data = api_res.json().get("data", {}).get("user", {})
-                    hd_pic = user_data.get("profile_pic_url_hd") or user_data.get("profile_pic_url")
+                    user_data = api_res.json().get("data", {}).get("user", {})                    hd_pic = user_data.get("profile_pic_url_hd") or user_data.get("profile_pic_url")
                     if hd_pic:
                         return {
                             "type": "instagram_dp",
@@ -2097,8 +2112,7 @@ async def bulk_image_process(
                 elif action in ("png_to_jpg", "webp_to_jpg", "heic_to_jpg"):
                     img = img.convert("RGB")
                     out_buf = io.BytesIO()
-                    img.save(out_buf, format="JPEG", quality=90, optimize=True)
-                    out_name = f"{stem}.jpg"
+                    img.save(out_buf, format="JPEG", quality=90, optimize=True)                    out_name = f"{stem}.jpg"
                 elif action in ("jpg_to_png", "webp_to_png", "heic_to_png"):
                     out_buf = io.BytesIO()
                     img.save(out_buf, format="PNG", optimize=True)
