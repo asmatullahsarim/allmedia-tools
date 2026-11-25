@@ -11,4 +11,4 @@ COPY --chown=appuser:appuser web/ ./web/
 USER appuser
 ENV HOME=/home/appuser DENO_DIR=/home/appuser/.cache/deno PYTHONUNBUFFERED=1 WORK_TMP_DIR=/tmp/allmedia_work
 EXPOSE 10000
-CMD ["sh", "-c", "exec uvicorn main:app --host 0.0.0.0 --port ${PORT:-10000} --limit-concurrency 4 --timeout-keep-alive 5"]
+CMD ["sh", "-c", "exec uvicorn main:app --host 0.0.0.0 --port ${PORT:-10000} --limit-concurrency 12 --timeout-keep-alive 5"]
