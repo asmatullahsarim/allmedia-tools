@@ -448,9 +448,9 @@ _u2netp_lock = threading.Lock()
 _u2netp_session = None
 _media_job_lock = threading.Lock()
 
-BG_MAX_UPLOAD_BYTES = 10 * 1024 * 1024
-BG_MAX_IMAGE_PIXELS = 16_000_000
-BG_MAX_IMAGE_SIDE = 512
+BG_MAX_UPLOAD_BYTES = 5 * 1024 * 1024
+BG_MAX_IMAGE_PIXELS = 8_000_000
+BG_MAX_IMAGE_SIDE = 384
 VIDEO_MAX_FILE_BYTES = 100 * 1024 * 1024
 VIDEO_MAX_DURATION_SECONDS = 10 * 60
 VIDEO_MAX_HEIGHT = 720
@@ -516,31 +516,8 @@ def _temp_reaper_loop() -> None:
 def start_background_reaper() -> None:
     t = threading.Thread(target=_temp_reaper_loop, daemon=True)
     t.start()
-    # Pre-load the u2netp ONNX model in a background thread so the first
-    # Remove Background request on a cold-start Render instance does not
-    # time out waiting for the model to initialise.
-    threading.Thread(target=_warmup_u2netp, daemon=True).start()
-
-
-def _warmup_u2netp() -> None:
-    """Load the u2netp session once at startup to avoid a cold-start timeout."""
-    try:
-        get_u2netp_session()
-    except Exception:
-        pass  # Non-fatal; the first real request will retry.
-
-    # Pre-load the u2netp ONNX model in a background thread so the first
-    # Remove Background request on a cold-start Render instance does not
-    # time out waiting for the model to initialise.
-    threading.Thread(target=_warmup_u2netp, daemon=True).start()
-
-
-def _warmup_u2netp() -> None:
-    """Load the u2netp session once at startup to avoid a cold-start timeout."""
-    try:
-        get_u2netp_session()
-    except Exception:
-        pass  # Non-fatal; the first real request will retry.
+    # Load ONNX only when requested; eager warmup competes with FastAPI,
+    # OpenCV, and yt-dlp for the free Render instance's 512 MB RAM.
 
 
 def get_cookies_file() -> str | None:
@@ -581,18 +558,19 @@ def format_duration(seconds: int | float | None) -> str:
     return f"{h}:{m:02d}:{s:02d}" if h else f"{m:02d}:{s:02d}"
 
 
-def pick_progressive_url(formats: list[dict[str, Any]], max_height: int) -> str | None:
+def pick_progressive_format(formats: list[dict[str, Any]], max_height: int) -> dict[str, Any] | None:
     progressive = [
         f
         for f in formats
         if f.get("url")
+        and f.get("ext") == "mp4"
+        and f.get("protocol") in ("http", "https")
         and f.get("vcodec") not in (None, "none")
         and f.get("acodec") not in (None, "none")
         and (f.get("height") or 0) <= max_height
     ]
     if progressive:
-        best = max(progressive, key=lambda f: (f.get("height") or 0, f.get("tbr") or 0))
-        return best["url"]
+        return max(progressive, key=lambda f: (f.get("height") or 0, f.get("tbr") or 0))
     return None
 
 
@@ -690,8 +668,10 @@ def fetch_video_info(req: UrlPayload, request: Request):
     encoded = urllib.parse.quote(url, safe="")
     base_url = str(request.base_url).rstrip("/")
 
-    std_url = pick_progressive_url(formats, 480) or info.get("url")
-    hd_url = pick_progressive_url(formats, 720) or std_url
+    std_format = pick_progressive_format(formats, 480)
+    hd_format = pick_progressive_format(formats, 720)
+    std_url = (std_format or {}).get("url") or info.get("url")
+    hd_url = (hd_format or {}).get("url")
 
     return {
         "title": info.get("title") or "Video",
@@ -700,10 +680,15 @@ def fetch_video_info(req: UrlPayload, request: Request):
         "duration": format_duration(duration_seconds),
         "max_size_mb": 100,
         "max_quality": "720p",
+        # Progressive media is downloaded by the visitor's browser. This
+        # avoids buffering/merging the full file on the memory-limited worker.
+        "direct_downloads": bool(std_format and std_format.get("url")),
+        "standard_quality": int((std_format or {}).get("height") or 480),
+        "hd_quality": int((hd_format or {}).get("height") or 480),
         "standard_url": f"{base_url}/api/video/download?url={encoded}&quality=480",
         "clean_hd_url": f"{base_url}/api/video/download?url={encoded}&quality=720",
-        "direct_480p_preview": std_url,
-        "direct_720p_preview": hd_url,
+        "direct_480p_url": std_url if std_format else None,
+        "direct_720p_url": hd_url if hd_format and hd_url != std_url else None,
     }
 
 

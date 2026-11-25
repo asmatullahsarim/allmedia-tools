@@ -1483,15 +1483,16 @@ const BACKEND_URL = "";
             </div>
           </div>
           <div class="grid grid-cols-1 gap-2">
-            ${data.standard_url ? `<button data-dl="${escapeHtml(data.standard_url)}" data-q="480p" class="v-tier-btn w-full py-2.5 px-3 rounded-xl bg-blue-600 text-white text-xs font-bold flex justify-between"><span>480p Standard MP4</span><span>Download ↓</span></button>` : ""}
-            ${data.clean_hd_url ? `<button data-dl="${escapeHtml(data.clean_hd_url)}" data-q="720p" class="v-tier-btn w-full py-2.5 px-3 rounded-xl bg-emerald-600 text-white text-xs font-bold flex justify-between"><span>720p HD MP4</span><span>Download ↓</span></button>` : ""}
+            ${(data.direct_480p_url || data.standard_url) ? `<button data-dl="${escapeHtml(data.direct_480p_url || data.standard_url)}" data-q="${Number(data.standard_quality) || 480}p" class="v-tier-btn w-full py-2.5 px-3 rounded-xl bg-blue-600 text-white text-xs font-bold flex justify-between"><span>${Number(data.standard_quality) || 480}p ${data.direct_480p_url ? "Direct MP4" : "Standard MP4"}</span><span>Download ↓</span></button>` : ""}
+            ${(data.direct_720p_url || data.clean_hd_url) ? `<button data-dl="${escapeHtml(data.direct_720p_url || data.clean_hd_url)}" data-q="${Number(data.hd_quality) || 720}p" class="v-tier-btn w-full py-2.5 px-3 rounded-xl bg-emerald-600 text-white text-xs font-bold flex justify-between"><span>${Number(data.hd_quality) || 720}p ${data.direct_720p_url ? "Direct MP4" : "HD MP4"}</span><span>Download ↓</span></button>` : ""}
           </div>
         </div>`;
 
       out.querySelectorAll(".v-tier-btn").forEach((b) => {
         b.addEventListener("click", () => {
           const dl = b.getAttribute("data-dl");
-          const q = b.getAttribute("data-q");          triggerDirectDownload(dl, `video_${q}.mp4`);
+          const q = b.getAttribute("data-q");
+          triggerDirectDownload(dl, `video_${q}.mp4`);
         });
       });
     }
@@ -1729,7 +1730,7 @@ const BACKEND_URL = "";
       <div class="space-y-3">
         <label class="flex flex-col items-center justify-center w-full h-24 rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 cursor-pointer">
           <span class="text-xs font-bold text-slate-800 dark:text-slate-200">Tap to upload photo</span>
-          <span id="bg-lbl" class="text-[10px] text-slate-400 mt-0.5">JPG, PNG, or WebP · max 10 MB · max 16 MP</span>
+          <span id="bg-lbl" class="text-[10px] text-slate-400 mt-0.5">JPG, PNG, or WebP · max 5 MB · max 8 MP</span>
           <input id="bg-in" type="file" accept="image/*" class="hidden" />
         </label>
         ${extra}
@@ -1742,17 +1743,17 @@ const BACKEND_URL = "";
     const out = document.getElementById("bg-out");
     fileIn.addEventListener("change", () => {
       const f = fileIn.files[0];
-      const tooLarge = Boolean(f && f.size > 10 * 1024 * 1024);
-      document.getElementById("bg-lbl").textContent = f ? `${f.name} (${formatBytes(f.size)})` : "JPG, PNG, or WebP · max 10 MB · max 16 MP";
+      const tooLarge = Boolean(f && f.size > 5 * 1024 * 1024);
+      document.getElementById("bg-lbl").textContent = f ? `${f.name} (${formatBytes(f.size)})` : "JPG, PNG, or WebP · max 5 MB · max 8 MP";
       btn.disabled = !f || tooLarge;
-      out.innerHTML = tooLarge ? errorBoxHtml("This free server accepts images up to 10 MB. Please choose a smaller image.") : "";
+      out.innerHTML = tooLarge ? errorBoxHtml("Background removal accepts images up to 5 MB and 8 megapixels on the free server. Please choose a smaller image.") : "";
     });
 
     btn.addEventListener("click", () => {
       const f = fileIn.files[0];
       if (!f) return;
       window.triggerRewardedAd(tool.name, async () => {
-        out.innerHTML = loadingSpinnerHtml("Removing background... this may take 20–40 s on a cold start.");
+        out.innerHTML = loadingSpinnerHtml("Removing background… the free server may take up to 90 seconds on its first request.");
         try {
           ensureBackendUrlConfigured();
           const form = new FormData();
@@ -1775,7 +1776,7 @@ const BACKEND_URL = "";
           out.innerHTML = downloadResultCardHtml(blob, `${f.name.replace(/\.[^.]+$/, "")}_${tool.action}.png`, f.size, objUrl);
         } catch (err) {
           const msg = err.name === "TimeoutError"
-            ? "Request timed out. The server may be starting up — please wait 30 seconds and try again."
+            ? "Background removal timed out. Try a smaller image or retry after the server wakes up."
             : err.message;
           out.innerHTML = errorBoxHtml(msg);
         }
