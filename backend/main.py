@@ -297,7 +297,10 @@ def verify_human(payload: CaptchaVerifyRequest, request: Request, response: Resp
         raise HTTPException(502, "Verification could not be checked. Please try again.") from None
     if (
         verification.get("success") is not True
-        or verification.get("hostname") not in {            "allmediatool.online", "www.allmediatool.online"        }        or verification.get("action") != "site_access"
+        or verification.get("hostname") not in {
+            "allmediatool.online", "www.allmediatool.online"
+        }
+        or verification.get("action") != "site_access"
     ):
         raise HTTPException(403, "Verification failed. Please try again.")
     expires = int(time.time()) + 12 * 60 * 60
@@ -596,7 +599,10 @@ def parse_hex_color(hex_str: str) -> tuple[int, int, int]:
         return (int(cleaned[0:2], 16), int(cleaned[2:4], 16), int(cleaned[4:6], 16))
     except ValueError:
         return (255, 255, 255)
-class UrlPayload(BaseModel):    url: str
+
+
+class UrlPayload(BaseModel):
+    url: str
     max_resolution: str = "1080p"
 
 
@@ -635,11 +641,6 @@ def fetch_video_info(req: UrlPayload, request: Request):
         "no_warnings": True,
         "skip_download": True,
         "noplaylist": True,
-        "socket_timeout": 15,
-        "retries": 1,
-        "extractor_retries": 1,
-        "fragment_retries": 1,
-        "cachedir": False,
         # YouTube now requires yt-dlp's EJS challenge solver and a JS runtime.
         # Deno and yt-dlp-ejs are installed in the production image.
         "js_runtimes": {"deno": {}},
@@ -649,25 +650,11 @@ def fetch_video_info(req: UrlPayload, request: Request):
     if cookies:
         ydl_opts["cookiefile"] = cookies
 
-    if not _media_job_lock.acquire(blocking=False):
-        raise HTTPException(status_code=429, detail="The free media worker is busy. Please retry in 20 seconds.")
     try:
-        try:
-            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                info = ydl.extract_info(url, download=False)
-        except Exception as exc:
-            message = str(exc)
-            if "sign in to confirm" in message.lower() or "cookies" in message.lower():
-                raise HTTPException(
-                    status_code=400,
-                    detail="This source requires sign-in verification. Try a supported public video link instead.",
-                ) from None
-            raise HTTPException(
-                status_code=400,
-                detail="Video source could not be fetched. It may be private, restricted, or temporarily blocking requests.",
-            ) from None
-    finally:
-        _media_job_lock.release()
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url, download=False)
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=f"Video extraction failed: {exc}")
 
     if "entries" in info and info["entries"]:
         info = info["entries"][0]
@@ -692,7 +679,7 @@ def fetch_video_info(req: UrlPayload, request: Request):
     }
 
 
-def _merge_and_stream_video_unlocked(url: str, max_height: int, background_tasks: BackgroundTasks) -> FileResponse:
+def _merge_and_stream_video(url: str, max_height: int, background_tasks: BackgroundTasks) -> FileResponse:
     url = validate_http_url(url)
     tmp_dir = create_temp_dir("vid_")
     out_tpl = os.path.join(tmp_dir, "video.%(ext)s")
@@ -700,11 +687,6 @@ def _merge_and_stream_video_unlocked(url: str, max_height: int, background_tasks
         "quiet": True,
         "no_warnings": True,
         "noplaylist": True,
-        "socket_timeout": 15,
-        "retries": 1,
-        "extractor_retries": 1,
-        "fragment_retries": 1,
-        "cachedir": False,
         "format": f"bestvideo[height<={max_height}]+bestaudio/best[height<={max_height}]/best",
         "merge_output_format": "mp4",
         "outtmpl": out_tpl,
@@ -744,15 +726,6 @@ def _merge_and_stream_video_unlocked(url: str, max_height: int, background_tasks
     out_ext = "webm" if final_path.lower().endswith(".webm") else "mp4"
     background_tasks.add_task(cleanup_dir, tmp_dir)
     return FileResponse(final_path, media_type=media_mime, filename=f"{safe_title}_{max_height}p.{out_ext}")
-
-
-def _merge_and_stream_video(url: str, max_height: int, background_tasks: BackgroundTasks) -> FileResponse:
-    if not _media_job_lock.acquire(blocking=False):
-        raise HTTPException(status_code=429, detail="The free media worker is busy. Please retry in 20 seconds.")
-    try:
-        return _merge_and_stream_video_unlocked(url, max_height, background_tasks)
-    finally:
-        _media_job_lock.release()
 
 
 @app.get("/api/video/download")
@@ -926,9 +899,12 @@ def extract_images(req: UrlPayload, request: Request):
     return {"title": title, "platform": host, "count": len(enriched), "images": enriched}
 
 
-@app.get("/api/images/proxy")def proxy_image_download(url: str = Query(...), filename: str = Query("image.jpg")):    target = validate_http_url(url)
+@app.get("/api/images/proxy")
+def proxy_image_download(url: str = Query(...), filename: str = Query("image.jpg")):
+    target = validate_http_url(url)
     session = build_requests_session()
-    parsed = urllib.parse.urlparse(target)    try:
+    parsed = urllib.parse.urlparse(target)
+    try:
         resp = session.get(target, headers={"Referer": f"{parsed.scheme}://{parsed.netloc}/"}, stream=True, timeout=20)
         resp.raise_for_status()
     except Exception as exc:
@@ -1123,7 +1099,6 @@ def _process_background_image_bytes(raw: bytes, action: str, bg_color: str, blur
     except Exception:
         raise HTTPException(status_code=400, detail="Could not read this image. Use a valid JPG, PNG, or WebP file.") from None
 
-    # Keep peak memory lower on the free 512 MB service.
     orig.thumbnail((640, 640), Image.Resampling.LANCZOS)
     orig = orig.convert("RGBA")
     try:
@@ -1131,22 +1106,13 @@ def _process_background_image_bytes(raw: bytes, action: str, bg_color: str, blur
         from rembg import remove
         fg_cutout = remove(orig, session=session).convert("RGBA")
     except MemoryError:
-        raise HTTPException(
-            status_code=503,
-            detail="Background removal ran out of memory. Try a smaller image (under 2 MB).",
-        ) from None
+        raise HTTPException(status_code=503, detail="Background removal ran out of memory. Try a smaller image (under 2 MB).") from None
     except Exception:
-        raise HTTPException(
-            status_code=503,
-            detail="The background removal model could not process this image. Please retry with a smaller JPG or PNG.",
-        ) from None
+        raise HTTPException(status_code=503, detail="The background removal model could not process this image. Please retry with a smaller JPG or PNG.") from None
 
     act = (action or "remove").lower().strip()
     if act == "change_color":
-        try:
-            rgb = parse_hex_color(bg_color)
-        except Exception:
-            raise HTTPException(status_code=400, detail="Choose a valid background color.") from None
+        rgb = parse_hex_color(bg_color)
         bg_layer = Image.new("RGBA", fg_cutout.size, (*rgb, 255))
         result_img = Image.alpha_composite(bg_layer, fg_cutout).convert("RGB")
     elif act == "blur":
@@ -1155,7 +1121,6 @@ def _process_background_image_bytes(raw: bytes, action: str, bg_color: str, blur
         result_img = Image.alpha_composite(blurred_bg, fg_cutout)
     else:
         result_img = fg_cutout
-
     out_buf = io.BytesIO()
     result_img.save(out_buf, format="PNG")
     return out_buf.getvalue(), "image/png", act, "png"
@@ -1176,19 +1141,18 @@ async def process_background(
     if len(raw) > 20 * 1024 * 1024:
         raise HTTPException(status_code=413, detail="Upload an image under 20 MB.")
     if not _media_job_lock.acquire(blocking=False):
-        raise HTTPException(status_code=429, detail="Background removal is busy. Please wait 20 seconds and try again.")
+        raise HTTPException(status_code=429, detail="The free media worker is busy. Please retry in 20 seconds.")
     try:
         data, mime, act, ext = await run_in_threadpool(
             _process_background_image_bytes, raw, action, bg_color, blur_radius
         )
     finally:
         _media_job_lock.release()
-
     base = sanitize_filename(os.path.splitext(file.filename or "photo")[0], "photo")
     return Response(
         content=data,
         media_type=mime,
-        headers={"Content-Disposition": f'attachment; filename="{base}_{act}.{ext}"'},
+        headers={"Content-Disposition": f"attachment; filename={base}_{act}.{ext}"},
     )
 
 
@@ -1224,10 +1188,12 @@ async def remove_watermark(
     cleaned = cv2.inpaint(src, binary_mask, max(2, min(15, radius)), cv2.INPAINT_TELEA)
 
     ok, encoded = cv2.imencode(".png", cleaned)
-    if not ok:        raise HTTPException(status_code=500, detail="Failed to encode cleaned PNG.")
+    if not ok:
+        raise HTTPException(status_code=500, detail="Failed to encode cleaned PNG.")
 
     base = sanitize_filename(os.path.splitext(image.filename or "photo")[0], "photo")
-    return Response(        content=encoded.tobytes(),
+    return Response(
+        content=encoded.tobytes(),
         media_type="image/png",
         headers={"Content-Disposition": f'attachment; filename="{base}_clean.png"'},
     )
@@ -1240,7 +1206,8 @@ async def remove_watermark(
 
 @app.post("/api/image-process")
 @app.post("/api/compress/image")
-async def process_image(    file: UploadFile = File(...),
+async def process_image(
+    file: UploadFile = File(...),
     action: str = Form("compress"),
     quality: int = Form(75),
     output_format: str = Form("webp"),
@@ -1522,11 +1489,13 @@ async def process_pdf(
                         xref = img_info[0]
                         extracted = doc.extract_image(xref)
                         if extracted and extracted.get("image"):
-                            count += 1                            iext = extracted.get("ext", "png")
+                            count += 1
+                            iext = extracted.get("ext", "png")
                             zf.writestr(f"pdf_img_{count:03d}.{iext}", extracted["image"])
             doc.close()
             if count == 0:
-                raise HTTPException(status_code=404, detail="No embedded images found in this PDF.")            out_bytes = zbuf.getvalue()
+                raise HTTPException(status_code=404, detail="No embedded images found in this PDF.")
+            out_bytes = zbuf.getvalue()
             mime, ext = "application/zip", "zip"
 
         elif act == "rotate":
@@ -1537,7 +1506,8 @@ async def process_pdf(
                 page.rotate(deg)
                 writer.add_page(page)
             out_buf = io.BytesIO()
-            writer.write(out_buf)            out_bytes = out_buf.getvalue()
+            writer.write(out_buf)
+            out_bytes = out_buf.getvalue()
             mime, ext = "application/pdf", "pdf"
 
         elif act == "rearrange":
@@ -1820,12 +1790,14 @@ def extract_thumbnail_or_dp(req: UrlPayload, request: Request):
                 "label": lbl,
                 "url": img_u,
                 "download_url": f"{base_url}/api/images/proxy?url={urllib.parse.quote(img_u, safe='')}&filename={fname}",
-            }            for lbl, img_u, fname in variants
+            }
+            for lbl, img_u, fname in variants
         ]
         return {"type": "youtube_thumbnail", "title": f"YouTube Video ({vid})", "items": items}
 
     if "instagram.com" in url.lower():
-        prof_match = re.match(r"^https?://(?:www\.)?instagram\.com/([a-zA-Z0-9._]+)/?(?:\?.*)?$", url)        if prof_match and prof_match.group(1) not in ("p", "reel", "reels", "tv", "stories", "explore"):
+        prof_match = re.match(r"^https?://(?:www\.)?instagram\.com/([a-zA-Z0-9._]+)/?(?:\?.*)?$", url)
+        if prof_match and prof_match.group(1) not in ("p", "reel", "reels", "tv", "stories", "explore"):
             username = prof_match.group(1)
             try:
                 api_res = session.get(
@@ -1834,7 +1806,8 @@ def extract_thumbnail_or_dp(req: UrlPayload, request: Request):
                     timeout=12,
                 )
                 if api_res.ok:
-                    user_data = api_res.json().get("data", {}).get("user", {})                    hd_pic = user_data.get("profile_pic_url_hd") or user_data.get("profile_pic_url")
+                    user_data = api_res.json().get("data", {}).get("user", {})
+                    hd_pic = user_data.get("profile_pic_url_hd") or user_data.get("profile_pic_url")
                     if hd_pic:
                         return {
                             "type": "instagram_dp",
@@ -2118,20 +2091,23 @@ async def bulk_image_process(
                     img = img.convert("RGB") if img.mode not in ("RGB", "L") else img
                     if img.width > 1920:
                         ratio = 1920 / img.width
-                        img = img.resize((1920, int(img.height * ratio)), Image.Resampling.LANCZOS)                    out_buf = io.BytesIO()
+                        img = img.resize((1920, int(img.height * ratio)), Image.Resampling.LANCZOS)
+                    out_buf = io.BytesIO()
                     img.save(out_buf, format="JPEG", quality=max(20, min(95, quality)), optimize=True)
                     out_name = f"{stem}.jpg"
                 elif action == "resize":
                     target_w = max(64, min(4096, int(width)))
                     target_h = max(64, int(img.height * (target_w / float(img.width))))
-                    img = img.resize((target_w, target_h), Image.Resampling.LANCZOS)                    out_buf = io.BytesIO()
+                    img = img.resize((target_w, target_h), Image.Resampling.LANCZOS)
+                    out_buf = io.BytesIO()
                     fmt = "JPEG" if img.mode in ("RGB", "L") else "PNG"
                     img.save(out_buf, format=fmt)
                     out_name = f"{stem}_resized.{'jpg' if fmt == 'JPEG' else 'png'}"
                 elif action in ("png_to_jpg", "webp_to_jpg", "heic_to_jpg"):
                     img = img.convert("RGB")
                     out_buf = io.BytesIO()
-                    img.save(out_buf, format="JPEG", quality=90, optimize=True)                    out_name = f"{stem}.jpg"
+                    img.save(out_buf, format="JPEG", quality=90, optimize=True)
+                    out_name = f"{stem}.jpg"
                 elif action in ("jpg_to_png", "webp_to_png", "heic_to_png"):
                     out_buf = io.BytesIO()
                     img.save(out_buf, format="PNG", optimize=True)
