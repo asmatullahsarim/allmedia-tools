@@ -641,6 +641,11 @@ def fetch_video_info(req: UrlPayload, request: Request):
         "no_warnings": True,
         "skip_download": True,
         "noplaylist": True,
+        "socket_timeout": 15,
+        "retries": 1,
+        "extractor_retries": 1,
+        "fragment_retries": 1,
+        "cachedir": False,
         # YouTube now requires yt-dlp's EJS challenge solver and a JS runtime.
         # Deno and yt-dlp-ejs are installed in the production image.
         "js_runtimes": {"deno": {}},
@@ -650,11 +655,19 @@ def fetch_video_info(req: UrlPayload, request: Request):
     if cookies:
         ydl_opts["cookiefile"] = cookies
 
+    if not _media_job_lock.acquire(blocking=False):
+        raise HTTPException(status_code=429, detail="The free media worker is busy. Please retry in 20 seconds.")
     try:
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(url, download=False)
-    except Exception as exc:
-        raise HTTPException(status_code=400, detail=f"Video extraction failed: {exc}")
+        try:
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                info = ydl.extract_info(url, download=False)
+        except Exception as exc:
+            message = str(exc).lower()
+            if "sign in to confirm" in message or "cookies" in message:
+                raise HTTPException(status_code=400, detail="This source requires sign-in verification. Try a supported public video link instead.") from None
+            raise HTTPException(status_code=400, detail="Video source could not be fetched. It may be private, restricted, or temporarily blocking requests.") from None
+    finally:
+        _media_job_lock.release()
 
     if "entries" in info and info["entries"]:
         info = info["entries"][0]
@@ -679,7 +692,7 @@ def fetch_video_info(req: UrlPayload, request: Request):
     }
 
 
-def _merge_and_stream_video(url: str, max_height: int, background_tasks: BackgroundTasks) -> FileResponse:
+def _merge_and_stream_video_unlocked(url: str, max_height: int, background_tasks: BackgroundTasks) -> FileResponse:
     url = validate_http_url(url)
     tmp_dir = create_temp_dir("vid_")
     out_tpl = os.path.join(tmp_dir, "video.%(ext)s")
@@ -687,6 +700,11 @@ def _merge_and_stream_video(url: str, max_height: int, background_tasks: Backgro
         "quiet": True,
         "no_warnings": True,
         "noplaylist": True,
+        "socket_timeout": 15,
+        "retries": 1,
+        "extractor_retries": 1,
+        "fragment_retries": 1,
+        "cachedir": False,
         "format": f"bestvideo[height<={max_height}]+bestaudio/best[height<={max_height}]/best",
         "merge_output_format": "mp4",
         "outtmpl": out_tpl,
@@ -726,6 +744,15 @@ def _merge_and_stream_video(url: str, max_height: int, background_tasks: Backgro
     out_ext = "webm" if final_path.lower().endswith(".webm") else "mp4"
     background_tasks.add_task(cleanup_dir, tmp_dir)
     return FileResponse(final_path, media_type=media_mime, filename=f"{safe_title}_{max_height}p.{out_ext}")
+
+
+def _merge_and_stream_video(url: str, max_height: int, background_tasks: BackgroundTasks) -> FileResponse:
+    if not _media_job_lock.acquire(blocking=False):
+        raise HTTPException(status_code=429, detail="The free media worker is busy. Please retry in 20 seconds.")
+    try:
+        return _merge_and_stream_video_unlocked(url, max_height, background_tasks)
+    finally:
+        _media_job_lock.release()
 
 
 @app.get("/api/video/download")
