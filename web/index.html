@@ -36,9 +36,9 @@
     };
   </script>
   <!-- Client-Side Processing Libraries -->
-  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="style.css?v=5" />
 </head>
-<body data-skin="ocean" class="bg-slate-200 dark:bg-slate-950 min-h-screen flex flex-col items-center justify-center sm:py-5 font-sans antialiased transition-colors duration-300">
+<body data-skin="ocean" class="bg-[#F8FAFC] dark:bg-slate-950 min-h-screen flex flex-col font-sans antialiased transition-colors duration-300">
 
   <!-- Desktop Helper Badge -->
   <div class="hidden sm:flex items-center gap-2 mb-2.5 px-3.5 py-1 rounded-full bg-white/90 dark:bg-slate-900/90 text-slate-700 dark:text-slate-300 text-xs font-semibold shadow-sm border border-slate-300/70 dark:border-slate-800">
@@ -56,7 +56,7 @@
   </div>
 
   <!-- Mobile-First App Container -->
-  <div id="app-shell" class="relative w-full max-w-[480px] h-[100dvh] sm:h-[860px] sm:max-h-[93vh] bg-[#F8FAFC] dark:bg-[#0B1120] sm:rounded-[38px] sm:border-[8px] sm:border-slate-800 shadow-2xl overflow-hidden flex flex-col transition-colors duration-300">
+  <div id="app-shell" class="relative w-full min-h-screen bg-[#F8FAFC] dark:bg-[#0B1120] overflow-hidden flex flex-col transition-colors duration-300">
 
     <!-- 1. Top Sticky Header with Skin Switcher, API Server Button & Dark/Light Toggle -->
     <header class="site-header bg-white/95 dark:bg-slate-900/95 backdrop-blur-md px-4 py-2.5 flex items-center justify-between border-b border-slate-200/75 dark:border-slate-800 z-30 shrink-0 transition-colors">
@@ -72,6 +72,7 @@
       </div>
 
       <div class="flex items-center gap-1.5 relative">
+        <button id="account-open-btn" type="button" class="account-open-btn h-9 px-3 rounded-xl skin-bg text-white text-xs font-bold transition-all" aria-label="Sign in or view account">Sign in</button>
         <!-- Skin Selector Button -->
         <button id="skin-menu-btn" aria-label="Change UI Skin" class="h-9 px-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 flex items-center gap-1.5 hover:bg-slate-200 dark:hover:bg-slate-700 active:scale-95 transition-all text-xs font-bold">
           <span id="current-skin-dot" class="w-3 h-3 rounded-full skin-bg ring-2 ring-white dark:ring-slate-900"></span>
@@ -125,57 +126,48 @@
 
       <aside class="display-ad" data-display-ad="leaderboard" aria-label="Advertisement" hidden></aside>
 
-      <!-- Compact Hero + Dual Smart Bars -->
-      <section class="px-3.5 pt-3 pb-2.5">
-        <!-- SEO intro -->
-        <div class="text-center mb-3">
-          <h1 class="home-title font-extrabold tracking-tight text-slate-900 dark:text-white">Free Online Image, PDF, Video &amp; AI Tools</h1>
-          <p class="mt-1 text-sm text-slate-600 dark:text-slate-300">Compress and resize images, merge PDFs, convert MP4 to MP3, or paste a supported video link into the downloader.</p>
-        </div>
-        <!-- End SEO intro -->
-      <div class="link-downloader" aria-label="Download from a link">
-        <!-- 2A. Smart Link Paste Bar (Paste button at the far right end of bar) -->
-        <div class="bg-white dark:bg-slate-800/95 rounded-2xl p-1.5 shadow-sm border border-slate-200/90 dark:border-slate-700 skin-border-focus transition-all mb-2">
-          <div id="smart-link-row" class="flex items-center gap-1.5 flex-nowrap">
-            <div class="pl-2 skin-text shrink-0">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.3" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/>
-              </svg>
-            </div>
-            <input id="smart-link-input" type="url" aria-label="Video or image link" placeholder="Paste a video or image link" class="flex-1 min-w-0 bg-transparent text-xs font-medium text-slate-800 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 py-1.5 focus:outline-none" />
-            <button id="smart-download-btn" type="button" class="px-3 py-1.5 rounded-xl skin-bg text-white text-xs font-bold skin-shadow shrink-0 active:scale-95 transition-all">
-              Download
-            </button>
-            <button id="clipboard-paste-btn" type="button" title="Paste from Clipboard" class="px-2.5 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 text-[11px] font-bold flex items-center gap-1 shrink-0 active:scale-95 transition-all">
-              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
-              </svg>
-              <span>Paste</span>
-            </button>
+      <!-- Competitor-inspired responsive homepage hero + smart link detection -->
+      <section class="home-hero px-4 md:px-12 pt-7 md:pt-10 pb-5 md:pb-7">
+        <div class="home-hero-inner mx-auto w-full max-w-6xl">
+          <div class="text-center mb-5">
+            <span class="home-eyebrow inline-flex items-center rounded-full px-3 py-1 text-[10px] font-extrabold tracking-wide skin-soft-bg skin-text">FREE ONLINE MEDIA TOOLS</span>
+            <h1 class="home-title mt-3 font-extrabold tracking-tight text-slate-900 dark:text-white">Free Online Image, PDF &amp; Video Tools</h1>
+            <p class="mx-auto mt-2 max-w-2xl text-sm md:text-base text-slate-600 dark:text-slate-300">Convert files, resize images, combine PDFs, and find the right downloader for a supported link.</p>
           </div>
-        </div>
 
-      </div>
+          <div class="home-search mx-auto mb-3 flex w-full max-w-4xl items-center gap-2 rounded-2xl border border-slate-200 bg-white p-1.5 shadow-sm dark:border-slate-700 dark:bg-slate-800/95 skin-border-focus">
+            <svg class="ml-2 h-5 w-5 shrink-0 text-slate-400" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+            <input id="live-search-input" type="search" aria-label="Search tools" placeholder="Search for an image, PDF or media tool" class="min-h-11 flex-1 bg-transparent px-2 text-sm font-medium text-slate-800 placeholder-slate-400 focus:outline-none dark:text-white dark:placeholder-slate-500" />
+            <button id="clear-search-btn" type="button" aria-label="Clear search" class="hidden rounded-xl p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"><svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2.3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button>
+            <button id="home-search-btn" type="button" class="rounded-xl px-4 py-3 text-xs font-bold text-white skin-bg">Search</button>
+          </div>
 
-      <nav class="category-navigation" aria-label="Tool categories">
-        <button type="button" data-category-link="image" aria-pressed="false">Image</button>
-        <button type="button" data-category-link="pdf" aria-pressed="false">PDF</button>
-        <button type="button" data-category-link="video" aria-pressed="false">Video</button>
-        <button type="button" data-category-link="converter" aria-pressed="false">Converters</button>
-        <button type="button" data-category-link="ai" aria-pressed="false">AI</button>
-        <button type="button" data-category-link="other" aria-pressed="false">Other</button>
-      </nav>
+          <div class="link-downloader mx-auto w-full max-w-4xl rounded-2xl border border-emerald-100 bg-white p-3 shadow-sm dark:border-slate-700 dark:bg-slate-800/95">
+            <div class="mb-2 flex items-center justify-between gap-2 px-1">
+              <label for="smart-link-input" class="text-xs font-bold text-slate-800 dark:text-slate-100">Quick video link</label>
+              <span class="inline-flex items-center gap-1 text-[9px] font-extrabold tracking-wider text-emerald-700 dark:text-emerald-300"><span class="h-1.5 w-1.5 rounded-full bg-emerald-500"></span> AUTO-DETECT</span>
+            </div>
+            <div id="smart-link-row" class="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 p-1 dark:border-slate-700 dark:bg-slate-900/60">
+              <svg class="ml-2 h-4 w-4 shrink-0 skin-text" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M10 13a5 5 0 007.07 0l3-3A5 5 0 0013 2.93l-1.72 1.72m2.72 6.35a5 5 0 00-7.07 0l-3 3A5 5 0 0011 21.07l1.72-1.72"/></svg>
+              <input id="smart-link-input" type="url" aria-label="Paste a video URL" placeholder="Paste a supported video URL" autocomplete="url" class="min-w-0 flex-1 bg-transparent px-1 py-2.5 text-xs font-medium text-slate-800 placeholder-slate-400 focus:outline-none dark:text-white dark:placeholder-slate-500" />
+              <button id="clipboard-paste-btn" type="button" title="Paste from clipboard" class="shrink-0 rounded-lg bg-slate-200 px-3 py-2.5 text-[11px] font-bold text-slate-700 transition-transform active:scale-95 dark:bg-slate-700 dark:text-slate-200">Paste</button>
+              <button id="smart-download-btn" type="button" class="hidden shrink-0 rounded-lg px-3 py-2.5 text-[11px] font-bold text-white skin-bg skin-shadow transition-all" disabled>Fetch video links</button>
+            </div>
+            <div class="smart-link-feedback mt-2 flex min-h-6 items-center justify-between gap-2 px-1">
+              <p id="smart-link-status" role="status" aria-live="polite" class="text-[10px] text-slate-500 dark:text-slate-400">Paste a link to identify its source and open the matching downloader.</p>
+              <span id="smart-link-source" hidden class="source-badge shrink-0 rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-bold text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300"></span>
+            </div>
+          </div>
 
-        <!-- 2B. Compact Live Tool Search Bar -->
-        <div class="bg-white dark:bg-slate-800/95 rounded-2xl px-2.5 py-1 shadow-sm border border-slate-200/80 dark:border-slate-700 skin-border-focus flex items-center gap-2 transition-all">
-          <svg class="w-4 h-4 text-slate-400 shrink-0" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
-          </svg>
-          <input id="live-search-input" type="search" aria-label="Search tools" placeholder="Search tools (AI, image, PDF, video...)" class="flex-1 bg-transparent text-xs font-medium text-slate-800 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 py-1.5 focus:outline-none" />
-          <button id="clear-search-btn" type="button" aria-label="Clear search" class="hidden text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1">
-            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
-          </button>
-        </div>
+          <nav class="category-navigation mt-4 flex flex-wrap justify-center gap-2" aria-label="Tool categories">
+            <button type="button" data-category-link="all" aria-pressed="true">All tools</button>
+            <button type="button" data-category-link="image" aria-pressed="false">Image</button>
+            <button type="button" data-category-link="pdf" aria-pressed="false">PDF</button>
+            <button type="button" data-category-link="video" aria-pressed="false">Video</button>
+            <button type="button" data-category-link="ai" aria-pressed="false">AI tools</button>
+          </nav>
+
+
       </section>
 
       <!-- SEO navigation -->
@@ -243,6 +235,7 @@
       <footer class="mx-3.5 mb-4 rounded-2xl bg-white px-4 py-3 text-center text-xs text-slate-500 dark:bg-slate-800 dark:text-slate-400">
         <p class="font-bold text-slate-700 dark:text-slate-200">All Media Tools</p>
         <p class="mt-1">Free online image, PDF, video, and file tools.</p>
+        <a class="mt-2 inline-block font-semibold text-slate-600 underline dark:text-slate-300" href="mailto:developer@allmediatool.online">Contact support</a>
       </footer>
     </main>
 
@@ -275,10 +268,44 @@
     </div>
   </div>
 
-  <script src="config.js?v=2"></script>
+  <section id="account-modal" class="account-modal" hidden role="dialog" aria-modal="true" aria-labelledby="account-title">
+    <div class="account-panel">
+      <div class="flex items-start justify-between gap-3">
+        <div><p class="text-[10px] font-extrabold uppercase tracking-wider skin-text">All Media Tools</p><h2 id="account-title" class="mt-1 text-xl font-extrabold text-slate-900 dark:text-white">My account &amp; usage</h2><p id="auth-user-label" class="mt-1 text-xs text-slate-500 dark:text-slate-400">Sign in for higher free AI limits.</p></div>
+        <button id="account-close-btn" type="button" aria-label="Close account" class="h-9 w-9 rounded-full bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-200">×</button>
+      </div>
+      <div id="account-usage" class="usage-card mt-4">
+        <div class="flex items-center justify-between"><h3 class="text-sm font-bold">Daily AI usage</h3><span id="usage-tier" class="usage-tier">Guest</span></div>
+        <div class="usage-row"><span>Image generation</span><strong id="usage-image-count">0 / 7 today</strong></div><div class="usage-meter"><span id="usage-image-meter"></span></div>
+        <div class="usage-row"><span>AI chat</span><strong id="usage-chat-count">0 / 12 today</strong></div><div class="usage-meter"><span id="usage-chat-meter"></span></div>
+        <p id="usage-note" class="mt-2 text-[10px] text-slate-500 dark:text-slate-400">Guest limits are 50% lower. Sign in for the standard free limits. Usage resets daily.</p>
+      </div>
+      <div id="account-auth-panel" class="mt-4 space-y-3">
+        <div class="auth-provider-grid">
+          <button type="button" data-auth-provider="google" class="auth-provider">Continue with Google</button>
+        </div>
+        <div class="auth-divider"><span>or use email</span></div>
+        <form id="email-auth-form" class="space-y-2">
+          <label class="auth-label" for="auth-email">Business or personal email</label><input id="auth-email" type="email" autocomplete="email" placeholder="name@company.com" required class="auth-input" />
+          <label class="auth-label" for="auth-password">Password</label><input id="auth-password" type="password" autocomplete="current-password" minlength="8" placeholder="At least 8 characters" required class="auth-input" />
+          <div class="flex gap-2"><button id="email-auth-submit" type="submit" class="flex-1 rounded-xl px-4 py-3 text-xs font-bold text-white skin-bg">Sign in</button><button id="email-auth-mode" type="button" class="rounded-xl border border-slate-200 px-3 py-3 text-xs font-bold text-slate-700 dark:border-slate-700 dark:text-slate-200">Create account</button></div>
+        </form>
+        <p id="auth-status" role="status" aria-live="polite" class="text-[11px] text-slate-500 dark:text-slate-400">Firebase sign-in becomes active after Firebase project settings are added.</p>
+        <button id="sign-out-btn" type="button" class="hidden rounded-lg px-3 py-2 text-xs font-bold text-rose-600">Sign out</button>
+      </div>
+      <div class="mt-5 border-t border-slate-200 pt-4 dark:border-slate-700">
+        <h3 class="text-sm font-bold text-slate-900 dark:text-white">Feedback (optional)</h3><p class="mt-1 text-[10px] text-slate-500 dark:text-slate-400">Share a suggestion or review; no public name is shown.</p>
+        <form id="feedback-form" class="mt-2 space-y-2"><label class="auth-label" for="feedback-rating">Optional rating</label><select id="feedback-rating" class="auth-input"><option value="">Skip rating</option><option value="5">★★★★★ — Great</option><option value="4">★★★★ — Good</option><option value="3">★★★ — Okay</option><option value="2">★★ — Needs work</option><option value="1">★ — Poor</option></select><textarea id="feedback-message" maxlength="2000" rows="3" placeholder="What should we improve?" class="auth-input resize-y"></textarea><div class="flex items-center justify-between gap-2"><label class="flex items-center gap-1.5 text-[10px] text-slate-500"><input id="analytics-consent" type="checkbox" /> Allow anonymous usage analytics</label><button type="submit" class="rounded-xl border border-slate-200 px-3 py-2 text-[11px] font-bold text-slate-700 dark:border-slate-700 dark:text-slate-200">Send feedback</button></div><p id="analytics-status" role="status" class="text-[10px] text-slate-500"></p></form>
+        <p id="feedback-status" role="status" aria-live="polite" class="mt-2 text-[10px] text-slate-500"></p>
+      </div>
+    </div>
+  </section>
+
+  <script src="config.js?v=3"></script>
   <script src="ads-config.js"></script>
   <script src="ads.js?v=2"></script>
-  <script src="app.js?v=3"></script>
+  <script src="app.js?v=5"></script>
+  <script type="module" src="firebase-auth.js?v=2"></script>
   <script>
     window.addEventListener("DOMContentLoaded", function () {
       if (!window.__ALLMEDIA_BOOTED__) {
