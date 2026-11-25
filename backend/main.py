@@ -646,10 +646,7 @@ def fetch_video_info(req: UrlPayload, request: Request):
         "extractor_retries": 1,
         "fragment_retries": 1,
         "cachedir": False,
-        # YouTube now requires yt-dlp's EJS challenge solver and a JS runtime.
-        # Deno and yt-dlp-ejs are installed in the production image.
-        "js_runtimes": {"deno": {}},
-        "remote_components": ["ejs:github"],
+        # Avoid spawning a separate JS challenge runtime on the 512 MB free worker.
     }
     cookies = get_cookies_file()
     if cookies:
@@ -708,8 +705,7 @@ def _merge_and_stream_video_unlocked(url: str, max_height: int, background_tasks
         "format": f"bestvideo[height<={max_height}]+bestaudio/best[height<={max_height}]/best",
         "merge_output_format": "mp4",
         "outtmpl": out_tpl,
-        "js_runtimes": {"deno": {}},
-        "remote_components": ["ejs:github"],
+        # Avoid spawning a separate JS challenge runtime on the 512 MB free worker.
     }
     cookies = get_cookies_file()
     if cookies:
