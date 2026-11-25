@@ -33,7 +33,6 @@ from PIL import Image, ImageEnhance, ImageFilter, ImageOps
 from pillow_heif import register_heif_opener
 from pypdf import PdfReader, PdfWriter
 from pydantic import BaseModel, Field
-from rembg import new_session, remove
 from reportlab.lib.colors import Color
 from reportlab.pdfgen import canvas
 
@@ -458,6 +457,7 @@ def get_u2netp_session():
                 # memory arena. On Render's 512 MB instance these can push an
                 # otherwise small background-removal request into an OOM restart.
                 import onnxruntime as ort
+                from rembg import new_session
 
                 options = ort.SessionOptions()
                 options.intra_op_num_threads = 1
@@ -1111,6 +1111,7 @@ async def process_background(
         orig.thumbnail((800, 800), Image.Resampling.LANCZOS)
         orig = orig.convert("RGBA")
         session = get_u2netp_session()
+        from rembg import remove
         fg_cutout = remove(orig, session=session).convert("RGBA")
 
         act = (action or "remove").lower().strip()
