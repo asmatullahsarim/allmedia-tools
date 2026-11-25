@@ -36,7 +36,7 @@
       frame.setAttribute("sandbox", "allow-scripts allow-popups allow-popups-to-escape-sandbox");
       frame.referrerPolicy = "strict-origin-when-cross-origin";
       const options = { key, format: "iframe", width, height, params: {} };
-      frame.srcdoc = `<!doctype html><meta charset="utf-8"><style>body{margin:0;overflow:hidden}</style><script>window.atOptions=${JSON.stringify(options)}</script><script src="https://bauval.org/22/${key}"></script>`;
+      frame.srcdoc = `<!doctype html><meta charset="utf-8"><style>body{margin:0;overflow:hidden}</style><script>window.atOptions=${JSON.stringify(options)}</script><script data-cfasync="false" type="text/javascript" src="https://bauval.org/22/${key}"></script>`;
       slot.replaceChildren(label, frame);
     }).observe(slot);
   }
