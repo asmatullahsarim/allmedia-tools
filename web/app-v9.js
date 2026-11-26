@@ -1778,9 +1778,16 @@ const BACKEND_URL = "";
       const f = fileIn.files[0];
       if (!f) return;
       window.triggerRewardedAd(tool.name, async () => {
-        out.innerHTML = loadingSpinnerHtml("Removing background… the free server may take up to 90 seconds on its first request.");
+        btn.disabled = true;
+        out.innerHTML = loadingSpinnerHtml("Connecting to the free server. If idle, waking can take about a minute.");
         try {
           ensureBackendUrlConfigured();
+          const health = await fetch(apiEndpoint("/api/health"), {
+            cache: "no-store",
+            signal: AbortSignal.timeout(120000),
+          });
+          if (!health.ok) throw new Error("The free server is still starting. Wait a minute, then try again.");
+          out.innerHTML = loadingSpinnerHtml("Server ready. Removing the background; the first request may take longer.");
           const form = new FormData();
           form.append("file", f);
           form.append("action", tool.action || "remove");
@@ -1790,7 +1797,7 @@ const BACKEND_URL = "";
           const res = await fetch(apiEndpoint("/api/bg-remove"), {
             method: "POST",
             body: form,
-            signal: AbortSignal.timeout(90000),
+            signal: AbortSignal.timeout(180000),
           });
           if (!res.ok) {
             const e = await res.json().catch(() => ({}));
@@ -1801,9 +1808,11 @@ const BACKEND_URL = "";
           out.innerHTML = downloadResultCardHtml(blob, `${f.name.replace(/\.[^.]+$/, "")}_${tool.action}.png`, f.size, objUrl);
         } catch (err) {
           const msg = err.name === "TimeoutError"
-            ? "Background removal timed out. Try a smaller image or retry after the server wakes up."
+            ? "The free server took too long to wake or process this image. Your file is still selected; wait a minute and try again."
             : err.message;
           out.innerHTML = errorBoxHtml(msg);
+        } finally {
+          btn.disabled = false;
         }
       }, (msg) => { out.innerHTML = errorBoxHtml(msg); });
     });
