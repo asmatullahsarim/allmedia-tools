@@ -1136,7 +1136,7 @@ def _process_background_image_bytes(raw: bytes, action: str, bg_color: str, blur
         raise HTTPException(status_code=400, detail="Could not read this image. Use a valid JPG, PNG, or WebP file.") from None
 
     if orig.width * orig.height > BG_MAX_IMAGE_PIXELS:
-        raise HTTPException(status_code=413, detail="Use an image with 16 megapixels or less for background removal.")
+        raise HTTPException(status_code=413, detail="Use an image with 8 megapixels or less for background removal.")
     orig.thumbnail((BG_MAX_IMAGE_SIDE, BG_MAX_IMAGE_SIDE), Image.Resampling.LANCZOS)
     orig = orig.convert("RGBA")
     try:
@@ -1173,11 +1173,9 @@ async def process_background(
     bg_color: str = Form("#2563eb"),
     blur_radius: int = Form(14),
 ):
-    raw = await read_upload(file)
+    raw = await read_upload(file, BG_MAX_UPLOAD_BYTES, "Background removal supports images up to 5 MB on the free server.")
     if not raw:
         raise HTTPException(status_code=400, detail="Upload an image first.")
-    if len(raw) > BG_MAX_UPLOAD_BYTES:
-        raise HTTPException(status_code=413, detail="Background removal supports images up to 10 MB on the free server.")
     if not _media_job_lock.acquire(blocking=False):
         raise HTTPException(status_code=429, detail="The free media worker is busy. Please retry in 20 seconds.")
     try:
