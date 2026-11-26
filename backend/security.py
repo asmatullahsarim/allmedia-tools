@@ -35,13 +35,13 @@ class PublicSession(requests.Session):
         return super().send(request, **kwargs)
 
 
-async def read_upload(file, limit=25 * 1024 * 1024):
+async def read_upload(file, limit=25 * 1024 * 1024, too_large_message="Upload exceeds the allowed file size."):
     chunks = []
     size = 0
     while chunk := await file.read(1024 * 1024):
         size += len(chunk)
         if size > limit:
-            raise HTTPException(413, "Upload exceeds the allowed file size.")
+            raise HTTPException(413, too_large_message)
         chunks.append(chunk)
     return b"".join(chunks)
 
