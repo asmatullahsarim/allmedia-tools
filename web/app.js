@@ -790,7 +790,7 @@ const BACKEND_URL = "";
     label.style.display = "block";
     const frame = document.createElement("iframe");
     frame.title = "Tool advertisement";
-    frame.src = new URL("/ads/banner.html", location.origin).href;
+    frame.src = new URL("/ads/banner.html?v=2", location.origin).href;
     frame.style.cssText = "width:320px;max-width:100%;height:50px;border:0";
     frame.setAttribute("sandbox", "allow-scripts allow-popups allow-popups-to-escape-sandbox");
     slot.append(label, frame);
@@ -1766,19 +1766,52 @@ const BACKEND_URL = "";
     const fileIn = document.getElementById("bg-in");
     const btn = document.getElementById("bg-go");
     const out = document.getElementById("bg-out");
+    let processing = false;
+    let fileValidated = false;
+    let invalidFile = false;
     fileIn.addEventListener("change", () => {
       const f = fileIn.files[0];
       const tooLarge = Boolean(f && f.size > 5 * 1024 * 1024);
+      const supportedType = !f || ["image/jpeg", "image/png", "image/webp"].includes(f.type);
+      fileValidated = false;
+      invalidFile = !f || tooLarge || !supportedType;
       document.getElementById("bg-lbl").textContent = f ? `${f.name} (${formatBytes(f.size)})` : "JPG, PNG, or WebP · max 5 MB · max 8 MP";
-      btn.disabled = !f || tooLarge;
-      out.innerHTML = tooLarge ? errorBoxHtml("Background removal accepts images up to 5 MB and 8 megapixels on the free server. Please choose a smaller image.") : "";
+      btn.disabled = true;
+      out.innerHTML = tooLarge
+        ? errorBoxHtml("Background removal accepts images up to 5 MB and 8 megapixels on the free server. Please choose a smaller image.")
+        : !supportedType ? errorBoxHtml("Use a JPG, PNG, or WebP image.") : "";
+      if (!f || tooLarge || !supportedType) return;
+
+      const objectUrl = URL.createObjectURL(f);
+      const image = new Image();
+      image.onload = () => {
+        URL.revokeObjectURL(objectUrl);
+        if (fileIn.files[0] !== f) return;
+        const tooManyPixels = image.naturalWidth * image.naturalHeight > 8_000_000;
+        fileValidated = true;
+        invalidFile = tooManyPixels;
+        btn.disabled = processing || invalidFile;
+        if (tooManyPixels) out.innerHTML = errorBoxHtml("This free server accepts images up to 8 megapixels. Please choose a smaller image.");
+      };
+      image.onerror = () => {
+        URL.revokeObjectURL(objectUrl);
+        if (fileIn.files[0] === f) {
+          fileValidated = true;
+          invalidFile = true;
+          btn.disabled = true;
+          out.innerHTML = errorBoxHtml("Could not read this image. Choose a valid JPG, PNG, or WebP file.");
+        }
+      };
+      image.src = objectUrl;
     });
 
     btn.addEventListener("click", () => {
       const f = fileIn.files[0];
-      if (!f) return;
+      if (!f || processing || btn.disabled) return;
+      processing = true;
+      btn.disabled = true;
+      fileIn.disabled = true;
       window.triggerRewardedAd(tool.name, async () => {
-        btn.disabled = true;
         out.innerHTML = loadingSpinnerHtml("Connecting to the free server. If idle, waking can take about a minute.");
         try {
           ensureBackendUrlConfigured();
@@ -1812,9 +1845,17 @@ const BACKEND_URL = "";
             : err.message;
           out.innerHTML = errorBoxHtml(msg);
         } finally {
-          btn.disabled = false;
+          processing = false;
+          fileIn.disabled = false;
+          const currentFile = fileIn.files[0];
+          btn.disabled = !currentFile || !fileValidated || invalidFile || currentFile.size > 5 * 1024 * 1024;
         }
-      }, (msg) => { out.innerHTML = errorBoxHtml(msg); });
+      }, (msg) => {
+        processing = false;
+        fileIn.disabled = false;
+        btn.disabled = !fileIn.files[0] || !fileValidated || invalidFile || fileIn.files[0].size > 5 * 1024 * 1024;
+        out.innerHTML = errorBoxHtml(msg);
+      });
     });
   }
 
