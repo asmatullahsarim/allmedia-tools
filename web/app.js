@@ -757,6 +757,28 @@ const BACKEND_URL = "";
     return comingSoon(tool) ? verifiedToolOrder.length + 1 : verifiedToolOrder.length;
   }
 
+  function appendToolGuide(body, tool) {
+    const engine = tool?.engine || "";
+    let steps;
+    if (engine === "api_video_url" || engine === "api_image_url" || engine === "api_thumb_dp" || engine === "api_transcript") {
+      steps = ["Paste a public link from a supported source.", "Choose Fetch or Convert and wait for the result.", "Use the result link or download button shown below."];
+    } else if (engine === "api_video_convert" || engine === "api_image" || engine === "api_pdf" || engine === "api_bg" || engine === "api_ocr" || engine === "api_upscale_ai" || engine === "api_watermark") {
+      steps = ["Choose a supported file from your device.", "Set the available options and start processing.", "Download the completed result when it appears."];
+    } else if (engine.startsWith("client_ai")) {
+      steps = ["Enter your prompt or text in the tool above.", "Choose any available settings and start generation.", "Review the result and save or copy it."];
+    } else {
+      steps = ["Enter or upload the content requested above.", "Choose the available options and run the tool.", "Review the result and download or copy it."];
+    }
+    const section = document.createElement("section");
+    section.className = "tool-guide";
+    section.setAttribute("aria-label", `How to use ${tool.name}`);
+    section.innerHTML = `
+      <h4>How to use ${escapeHtml(tool.name)}</h4>
+      <ol>${steps.map((step) => `<li>${escapeHtml(step)}</li>`).join("")}</ol>
+      <p>Use files and links you own or have permission to process. Availability can depend on the source and file format.</p>`;
+    body.append(section);
+  }
+
   function appendToolAd(body) {
     if (!window.ALLMEDIA_ADS?.enabled) return;
     const slot = document.createElement("aside");
@@ -772,7 +794,7 @@ const BACKEND_URL = "";
     frame.style.cssText = "width:320px;max-width:100%;height:50px;border:0";
     frame.setAttribute("sandbox", "allow-scripts allow-popups allow-popups-to-escape-sandbox");
     slot.append(label, frame);
-    body.append(slot);
+    body.prepend(slot);
   }
 
   function renderPopularStrip() {
@@ -1139,7 +1161,9 @@ const BACKEND_URL = "";
         bodyEl.innerHTML = errorBoxHtml("Tool configuration missing.");
     }
 
+    appendToolGuide(bodyEl, tool);
     appendToolAd(bodyEl);
+    toolDrawer?.classList.add("tool-page-open");
     showDrawer();
   };
 
