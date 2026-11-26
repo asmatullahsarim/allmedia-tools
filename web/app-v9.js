@@ -1090,6 +1090,7 @@ const BACKEND_URL = "";
     if (comingSoon(tool)) {
       badgeEl.textContent = "Coming soon";
       bodyEl.innerHTML = '<p role="status">Coming soon. This tool is currently unavailable.</p>';
+      toolDrawer?.classList.add("tool-page-open");
       showDrawer();
       return;
     }
