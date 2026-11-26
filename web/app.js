@@ -1755,7 +1755,7 @@ const BACKEND_URL = "";
       <div class="space-y-3">
         <label class="flex flex-col items-center justify-center w-full h-24 rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 cursor-pointer">
           <span class="text-xs font-bold text-slate-800 dark:text-slate-200">Tap to upload photo</span>
-          <span id="bg-lbl" class="text-[10px] text-slate-400 mt-0.5">Maximum 20 MB per image</span>
+          <span id="bg-lbl" class="text-[10px] text-slate-400 mt-0.5">JPG, PNG, or WebP · max 5 MB · max 8 MP</span>
           <input id="bg-in" type="file" accept="image/*" class="hidden" />
         </label>
         ${extra}
@@ -1768,17 +1768,26 @@ const BACKEND_URL = "";
     const out = document.getElementById("bg-out");
     fileIn.addEventListener("change", () => {
       const f = fileIn.files[0];
-      document.getElementById("bg-lbl").textContent = f ? `${f.name} (${formatBytes(f.size)})` : "Upload photo";
-      btn.disabled = !f;
+      const tooLarge = Boolean(f && f.size > 5 * 1024 * 1024);
+      document.getElementById("bg-lbl").textContent = f ? `${f.name} (${formatBytes(f.size)})` : "JPG, PNG, or WebP · max 5 MB · max 8 MP";
+      btn.disabled = !f || tooLarge;
+      out.innerHTML = tooLarge ? errorBoxHtml("Background removal accepts images up to 5 MB and 8 megapixels on the free server. Please choose a smaller image.") : "";
     });
 
     btn.addEventListener("click", () => {
       const f = fileIn.files[0];
       if (!f) return;
       window.triggerRewardedAd(tool.name, async () => {
-        out.innerHTML = loadingSpinnerHtml("Removing background... this may take 20–40 s on a cold start.");
+        btn.disabled = true;
+        out.innerHTML = loadingSpinnerHtml("Connecting to the free server. If idle, waking can take about a minute.");
         try {
           ensureBackendUrlConfigured();
+          const health = await fetch(apiEndpoint("/api/health"), {
+            cache: "no-store",
+            signal: AbortSignal.timeout(120000),
+          });
+          if (!health.ok) throw new Error("The free server is still starting. Wait a minute, then try again.");
+          out.innerHTML = loadingSpinnerHtml("Server ready. Removing the background; the first request may take longer.");
           const form = new FormData();
           form.append("file", f);
           form.append("action", tool.action || "remove");
@@ -1788,7 +1797,7 @@ const BACKEND_URL = "";
           const res = await fetch(apiEndpoint("/api/bg-remove"), {
             method: "POST",
             body: form,
-            signal: AbortSignal.timeout(90000),
+            signal: AbortSignal.timeout(180000),
           });
           if (!res.ok) {
             const e = await res.json().catch(() => ({}));
@@ -1799,9 +1808,11 @@ const BACKEND_URL = "";
           out.innerHTML = downloadResultCardHtml(blob, `${f.name.replace(/\.[^.]+$/, "")}_${tool.action}.png`, f.size, objUrl);
         } catch (err) {
           const msg = err.name === "TimeoutError"
-            ? "Request timed out. The server may be starting up — please wait 30 seconds and try again."
+            ? "The free server took too long to wake or process this image. Your file is still selected; wait a minute and try again."
             : err.message;
           out.innerHTML = errorBoxHtml(msg);
+        } finally {
+          btn.disabled = false;
         }
       }, (msg) => { out.innerHTML = errorBoxHtml(msg); });
     });
