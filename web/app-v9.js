@@ -726,19 +726,19 @@ const BACKEND_URL = "";
     "PDF to JPG": "Save PDF pages as images.",
   };
 
-  const verifiedToolOrder = ["QR Code Generator", "Lorem Ipsum Generator", "Epoch Converter"];
-
-  // Top tools by search volume — shown in "Popular" strip
-  const POPULAR_TOOL_NAMES = [
-    "Remove Background",
-    "AI Image Upscaler",
+  // Prioritize the main image, PDF, and audio workflows.
+  const PRIORITY_TOOL_NAMES = [
     "Compress Image",
+    "Resize Image",
     "JPG to PDF",
+    "Merge PDF",
+    "PNG to JPG",
+    "Remove Background",
     "Image to Text (OCR)",
     "MP4 to MP3",
-    "Merge PDF",
-    "Resize Image",
   ];
+
+  const POPULAR_TOOL_NAMES = PRIORITY_TOOL_NAMES;
 
   function needsServer(tool) {
     return tool.engine.startsWith("api_") || tool.engine.startsWith("client_ai_");
@@ -750,9 +750,9 @@ const BACKEND_URL = "";
   }
 
   function toolPriority(tool) {
-    const verifiedIndex = verifiedToolOrder.indexOf(tool.name);
-    if (verifiedIndex !== -1) return verifiedIndex;
-    return comingSoon(tool) ? verifiedToolOrder.length + 1 : verifiedToolOrder.length;
+    const priorityIndex = PRIORITY_TOOL_NAMES.indexOf(tool.name);
+    if (priorityIndex !== -1) return priorityIndex;
+    return PRIORITY_TOOL_NAMES.length + (comingSoon(tool) ? 1 : 0);
   }
 
   function appendToolGuide(body, tool) {

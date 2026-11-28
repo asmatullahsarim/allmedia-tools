@@ -73,21 +73,10 @@ const escapeHtml = (value) => value.replace(/[&<>"']/g, (char) => ({
 
 function navigation(items, prefix, heading) {
   const featured = heading === "Popular file tools";
-  const extraTools = [
-    ["QR Code Generator", "Create a QR code from text or a link."],
-    ["Lorem Ipsum Generator", "Generate placeholder text."],
-    ["Epoch Converter", "Convert a Unix timestamp to a date."],
-  ];
-  const links = featured ? "" : items.map(({ slug, name }) =>
-    `<li><a class="skin-text underline underline-offset-2" href="${prefix}${slug}/">${escapeHtml(name)}</a></li>`
+  const links = items.map(({ slug, name, description }) =>
+    '<li><a class="' + (featured ? "featured-tool" : "skin-text underline underline-offset-2") + '" href="' + prefix + slug + '/">' + escapeHtml(name) + (featured ? '<span>' + escapeHtml(description) + '</span>' : "") + '</a></li>'
   ).join("\n          ");
-  return `<nav dir="ltr" aria-label="${heading}" class="mx-3.5 my-4 rounded-2xl bg-white p-4 dark:bg-slate-800">
-        <h2 class="mb-2 text-base font-bold text-slate-900 dark:text-white">${heading}</h2>
-        <ul class="${featured ? "featured-tools-grid" : "grid grid-cols-2 gap-2 text-sm"}">
-${links}
-${featured ? extraTools.map(([name, description]) => `<li><button type="button" class="featured-tool" data-featured-tool="${escapeHtml(name)}">${escapeHtml(name)}<span>${escapeHtml(description)}</span></button></li>`).join("\n          ") : ""}
-        </ul>
-      </nav>`;
+  return '<nav dir="ltr" aria-label="' + heading + '" class="mx-3.5 my-4 rounded-2xl bg-white p-4 dark:bg-slate-800"><h2 class="mb-2 text-base font-bold text-slate-900 dark:text-white">' + (featured ? "Popular free tools" : heading) + '</h2><ul class="' + (featured ? "featured-tools-grid" : "grid grid-cols-2 gap-2 text-sm") + '">' + links + '</ul></nav>';
 }
 
 function metadata(pageUrl) {
@@ -112,7 +101,7 @@ function render(tool) {
     )
     .replace(/^ +<meta property="og:(?:title|description)"[^>]+>\n/gm, "");
   if (tool) {
-    const title = `${tool.heading} | All Media Tools`;
+    const title = ({ "compress-image": "Compress Images Online Free | All Media Tools", "resize-image": "Resize Images Online Free | All Media Tools", "png-to-jpg": "PNG to JPG Converter Online Free | All Media Tools", "jpg-to-pdf": "JPG to PDF Converter Online Free | All Media Tools", "merge-pdf": "Merge PDF Files Online Free | All Media Tools", "mp4-to-mp3": "MP4 to MP3 Converter Online Free | All Media Tools" })[tool.slug];
     const steps = tool.steps.map((step) => `<li>${escapeHtml(step)}</li>`).join("");
     const accept = tool.slug === "merge-pdf" ? ".pdf,application/pdf" :
       tool.slug === "jpg-to-pdf" ? ".jpg,.jpeg,image/jpeg" :
@@ -149,13 +138,13 @@ function render(tool) {
       .replace(/<meta name="description" content="[^"]*" \/>/, () => `<meta name="description" content="${escapeHtml(tool.description)}" />`)
       .replace(/<!-- SEO intro -->[\s\S]*?<!-- End SEO intro -->/, () => intro)
       .replace('href="./"', 'href="../"')
-      .replace(/(href|src)="(style\.css|config\.js|ads-config\.js|ads\.js(?:\?v=2)?|app\.js|all-media-tools-logo\.webp)"/g, '$1="../$2"');
+      .replace(/(href|src)="(style\.css(?:\?v=\d+)?|config\.js(?:\?v=\d+)?|ads-config\.js(?:\?v=\d+)?|ads\.js(?:\?v=\d+)?|app(?:-v9)?\.js(?:\?v=\d+)?|all-media-tools-logo\.webp)"/g, '$1="../$2"');
     const related = tool.related.map((slug) => tools.find((entry) => entry.slug === slug));
     html = html.replace(/<!-- SEO navigation -->[\s\S]*?<!-- End SEO navigation -->/, () => navigation(related, "../", "Related tools"));
   } else {
     html = html
-      .replace(/<title>.*?<\/title>/, () => `<title>All Media Tools - PDF Image converter - MP4 to MP3 &amp; Free Online All Video Downloader</title>`)
-      .replace(/<meta name="description" content="[^"]*" \/>/, () => `<meta name="description" content="Find free online tools to compress and resize images, merge PDFs, convert JPG to PDF or MP4 to MP3, and download videos from supported links." />`);
+      .replace(/<title>.*?<\/title>/, () => `<title>Free Online Image, PDF &amp; Video Tools | All Media Tools</title>`)
+      .replace(/<meta name="description" content="[^"]*" \/>/, () => `<meta name="description" content="Compress and resize images, convert PNG to JPG or JPG to PDF, merge PDF files, and convert MP4 to MP3 online with free tools from All Media Tools." />`);
     html = html.replace(/<!-- SEO navigation -->[\s\S]*?<!-- End SEO navigation -->/, () =>
       `<!-- SEO navigation -->
       ${navigation(tools, "./", "Popular file tools")}
@@ -165,6 +154,9 @@ function render(tool) {
 
   const title = html.match(/<title>(.*?)<\/title>/)[1];
   const description = html.match(/<meta name="description" content="([^"]*)"/)[1];
+  html = html
+    .replace(/<meta name="twitter:title" content="[^"]*" \/>/, () => `<meta name="twitter:title" content="${title}" />`)
+    .replace(/<meta name="twitter:description" content="[^"]*" \/>/, () => `<meta name="twitter:description" content="${description}" />`);
   return html.replace('  <meta property="og:type"', () =>
     `  <meta property="og:title" content="${title}" />\n  <meta property="og:description" content="${description}" />\n  <meta property="og:type"`
   );
@@ -172,7 +164,7 @@ function render(tool) {
 
 for (const output of [source, distribution]) {
   if (output === distribution) {
-    for (const asset of ["app.js", "ads.js", "ads-config.js", "style.css", "config.js", "all-media-tools-logo.webp"]) copyFileSync(join(source, asset), join(output, asset));
+    for (const asset of ["app.js", "app-v9.js", "ads.js", "ads-config.js", "style.css", "config.js", "all-media-tools-logo.webp"]) copyFileSync(join(source, asset), join(output, asset));
   }
   writeFileSync(join(output, "index.html"), render());
   for (const tool of tools) {
@@ -182,8 +174,9 @@ for (const output of [source, distribution]) {
   }
   const sitemap = join(output, "sitemap.xml");
   if (publicUrl) {
+    const lastmod = new Date().toISOString().slice(0, 10);
     const entries = ["./", ...tools.map(({ slug }) => `${slug}/`)].map((path) =>
-      `  <url><loc>${escapeHtml(new URL(path, publicUrl).href)}</loc></url>`
+      `  <url><loc>${escapeHtml(new URL(path, publicUrl).href)}</loc><lastmod>${lastmod}</lastmod></url>`
     );
     writeFileSync(sitemap, `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${entries.join("\n")}\n</urlset>\n`);
   } else {
