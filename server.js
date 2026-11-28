@@ -2504,10 +2504,6 @@ app.use((err, req, res, next) => {
 
 app.listen(PORT, HOST, () => {
   console.log(`All Media Tools server listening on http://${HOST}:${PORT}`);
-  // Pre-warm neural background removal model in background without blocking port 3000
-  setTimeout(() => {
-    getBgModel()
-      .then(() => console.log("Neural background model (briaai/RMBG-1.4) ready"))
-      .catch((err) => console.warn("BG model prewarm skipped:", err?.message || err));
-  }, 1500).unref();
+  // Load the neural model only when a background-removal request needs it.
+  // Eager prewarming can exceed the memory limit of Render's free instance.
 });
