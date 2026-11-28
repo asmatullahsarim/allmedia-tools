@@ -1,0 +1,8 @@
+{
+  "name": "All Media Tools",
+  "description": "Free online tools for images, PDFs, video and AI — compress, resize, convert, remove background, upscale, extract text (OCR), merge PDFs and more.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

@@ -40,8 +40,10 @@ assert.equal(disabled.children.length, 0);
 const enabled = run(true);
 assert.equal(enabled.hidden, false);
 assert.equal(enabled.children[1].width, 320);
+assert.equal(enabled.children[1].loading, 'eager');
+assert.equal(enabled.children[1].referrerPolicy, 'strict-origin-when-cross-origin');
 assert.match(enabled.children[1].srcdoc, /bauval\.org\/22\/4ccd05c141a3a268b563bbbabe6c14b2/);
-assert.ok(!enabled.children[1].attrs.sandbox.includes('allow-same-origin'));
+assert.equal(enabled.children[1].attrs.sandbox, undefined);
 
 const rectangle = run(true, { type: 'rectangle', width: 350 });
 assert.equal(rectangle.children[1].width, 300);
@@ -50,4 +52,4 @@ assert.match(banner, /4ccd05c141a3a268b563bbbabe6c14b2/);
 assert.match(banner, /https:\/\/bauval\.org\/22\//);
 assert.doesNotMatch(banner, /Paste the EXACT approved/);
 
-console.log('Ad placement checks passed (enablement, responsive sizes, sandbox, and tool banner code).');
+console.log('Ad placement checks passed (enablement, responsive sizes, referrerPolicy, and tool banner code).');

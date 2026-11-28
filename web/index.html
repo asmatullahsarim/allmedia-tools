@@ -339,7 +339,7 @@
     try { return Number(localStorage.getItem(expiryKey) || 0) > Date.now(); }
     catch (_) { return false; }
   }
-  if (!overlay || validSession()) return;
+  if (!overlay || validSession() || !/^(www\.)?allmediatool\.online$/i.test(location.hostname)) return;
   overlay.hidden = false;
   document.body.style.overflow = "hidden";
   window.onTurnstileLoaded = function() {

@@ -294,6 +294,7 @@ html {
 
 .display-ad:not([hidden]) {
   display: grid;
+  width: 100%;
   justify-items: center;
   overflow: hidden;
   max-inline-size: 100%;

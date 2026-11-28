@@ -1,0 +1,28 @@
+{
+  "name": "allmedia-tools",
+  "version": "4.0.0",
+  "private": true,
+  "type": "module",
+  "description": "All Media Tools - Free Online Image, PDF, Video & AI Tools",
+  "scripts": {
+    "dev": "node server.js",
+    "start": "node server.js",
+    "build": "node --check server.js",
+    "lint": "node --check server.js && node --check web/app-v9.js && node --check web/app.js",
+    "test:ads": "node web/tests/ads.test.cjs"
+  },
+  "dependencies": {
+    "@google/genai": "^3.6.1",
+    "@huggingface/transformers": "^4.3.2",
+    "cheerio": "^1.2.0",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.6",
+    "express": "^5.3.0",
+    "jszip": "^3.10.2",
+    "multer": "^2.5.0",
+    "pdf-lib": "^1.17.1",
+    "sharp": "^0.35.5",
+    "tesseract.js": "^7.0.0",
+    "unpdf": "^2.2.3"
+  }
+}

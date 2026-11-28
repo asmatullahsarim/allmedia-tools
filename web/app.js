@@ -792,7 +792,7 @@ const BACKEND_URL = "";
     frame.title = "Tool advertisement";
     frame.src = new URL("/ads/banner.html?v=2", location.origin).href;
     frame.style.cssText = "width:320px;max-width:100%;height:50px;border:0";
-    frame.setAttribute("sandbox", "allow-scripts allow-popups allow-popups-to-escape-sandbox");
+    frame.referrerPolicy = "strict-origin-when-cross-origin";
     slot.append(label, frame);
     body.prepend(slot);
   }
@@ -1203,7 +1203,393 @@ const BACKEND_URL = "";
             <option value="3d octane render">3D Render</option>
             <option value="clean flat vector logo">Vector Logo</option>
           </select>
-          <button id="ai-img-go" class="px-4 py-2 rounded-xl skin-bg text-white text-xs fon…6087 tokens truncated…rounded-2xl skin-bg text-white text-xs font-bold skin-shadow" disabled>Apply &amp; Download</button>
+          <button id="ai-img-go" class="px-4 py-2 rounded-xl skin-bg text-white text-xs font-bold skin-shadow">Generate Free</button>
+        </div>
+        <div id="ai-img-out" class="rounded-2xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-3 text-center text-xs text-slate-500">Prompts can be up to 900 characters. Generation is subject to availability and usage limits.</div>
+      </div>`;
+
+    document.getElementById("ai-img-go").addEventListener("click", async () => {
+      const p = document.getElementById("ai-img-prompt").value.trim();
+      const s = document.getElementById("ai-img-style").value;
+      const out = document.getElementById("ai-img-out");
+      if (!p) { out.innerHTML = errorBoxHtml("Please write an image prompt first."); return; }
+      out.innerHTML = loadingSpinnerHtml("Generating HD AI image...");
+      const button = document.getElementById("ai-img-go");
+      button.disabled = true;
+      try {
+        const res = await requestAi("/api/ai/image", { prompt: `${p}, ${s}` });
+        const blob = await res.blob();
+        const objUrl = URL.createObjectURL(blob);
+        const extension = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp" }[blob.type];
+        out.innerHTML = downloadResultCardHtml(blob, `ai-generated.${extension}`, null, objUrl);
+      } catch (err) {
+        out.innerHTML = errorBoxHtml(err.message);
+      } finally {
+        button.disabled = false;
+      }
+    });
+  }
+
+  function mountAiChatAssistant(bodyEl) {
+    const chatMessages = [];
+    bodyEl.innerHTML = `
+      <div class="space-y-2.5">
+        <p class="text-sm text-slate-600 dark:text-slate-300">Free chat has usage limits. Messages can be up to 4,000 characters. If chat is busy or the limit is reached, try again later.</p>
+        <div id="ai-chat-history" class="h-52 overflow-y-auto no-scrollbar rounded-2xl bg-slate-100 dark:bg-slate-800/90 p-3 space-y-2.5 border border-slate-200 dark:border-slate-700">
+          <div class="bg-white dark:bg-slate-900 rounded-2xl rounded-tl-none px-3 py-2 text-xs text-slate-800 dark:text-slate-200 shadow-sm">
+            Hello! Ask anything — Instagram captions, YouTube titles, coding help, or translations.
+          </div>
+        </div>
+        <div class="flex gap-2 bg-slate-100 dark:bg-slate-800 p-1.5 rounded-xl border border-slate-200 dark:border-slate-700">
+          <input id="ai-chat-input" maxlength="4000" type="text" placeholder="Ask anything..." class="flex-1 bg-transparent text-xs text-slate-900 dark:text-white px-2 py-1 focus:outline-none" />
+          <button id="ai-chat-send" class="px-3.5 py-1.5 rounded-lg skin-bg text-white text-xs font-bold">Send</button>
+        </div>
+      </div>`;
+
+    const historyEl = document.getElementById("ai-chat-history");
+    const inputEl = document.getElementById("ai-chat-input");
+    const sendBtn = document.getElementById("ai-chat-send");
+
+    async function sendChat() {
+      const q = inputEl.value.trim();
+      if (!q || sendBtn.disabled) return;
+      inputEl.value = "";
+      sendBtn.disabled = true;
+      chatMessages.push({ role: "user", content: q });
+      historyEl.innerHTML += `<div class="flex justify-end"><div class="skin-bg text-white rounded-2xl rounded-tr-none px-3 py-2 text-xs max-w-[85%]">${escapeHtml(q)}</div></div>`;
+      const pendingId = `ai-wait-${Date.now()}`;
+      historyEl.innerHTML += `<div id="${pendingId}" class="text-[11px] font-semibold text-slate-500">Thinking...</div>`;
+      historyEl.scrollTop = historyEl.scrollHeight;
+
+      try {
+        const res = await requestAi("/api/ai/chat", { messages: chatMessages.slice(-11) });
+        const { answer } = await res.json();
+        chatMessages.push({ role: "assistant", content: answer });
+        const waitNode = document.getElementById(pendingId);
+        if (waitNode) {
+          waitNode.outerHTML = `<div class="bg-white dark:bg-slate-900 rounded-2xl rounded-tl-none px-3 py-2 text-xs text-slate-800 dark:text-slate-200 whitespace-pre-wrap shadow-sm">${escapeHtml(answer)}</div>`;
+        }
+      } catch (err) {
+        const waitNode = document.getElementById(pendingId);
+        chatMessages.pop();
+        if (!inputEl.value) inputEl.value = q;
+        if (waitNode) waitNode.outerHTML = errorBoxHtml(err.message);
+      } finally {
+        sendBtn.disabled = false;
+        historyEl.scrollTop = historyEl.scrollHeight;
+      }
+    }
+
+    sendBtn.addEventListener("click", sendChat);
+    inputEl.addEventListener("keydown", (e) => { if (e.key === "Enter") sendChat(); });
+  }
+
+  function mountQrGenerator(bodyEl) {
+    bodyEl.innerHTML = `
+      <div class="space-y-3 text-center">
+        <div class="flex gap-2">
+          <input id="qr-input" type="text" placeholder="Enter a URL, Wi-Fi details or text..." class="flex-1 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-3 py-2 text-xs text-slate-900 dark:text-white" />
+          <button id="qr-make-btn" class="px-3.5 py-2 rounded-xl skin-bg text-white text-xs font-bold">Generate</button>
+        </div>
+        <div id="qr-canvas-wrap" class="p-3 bg-white rounded-2xl border border-slate-200 inline-block mx-auto"></div>
+        <div id="qr-dl-area"></div>
+      </div>`;
+
+    const wrap = document.getElementById("qr-canvas-wrap");
+    const dlArea = document.getElementById("qr-dl-area");
+
+    async function buildQr() {
+      const txt = document.getElementById("qr-input").value.trim();
+      if (!txt) { dlArea.innerHTML = errorBoxHtml("Enter text or URL."); return; }
+      dlArea.innerHTML = loadingSpinnerHtml("Loading QR generator…");
+      try {
+        await loadClientLibrary("qrcode", "https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js");
+      } catch (error) { dlArea.innerHTML = errorBoxHtml(error.message); return; }
+      if (typeof window.QRCode !== "function") { dlArea.innerHTML = errorBoxHtml("QR generator is unavailable."); return; }
+      dlArea.replaceChildren();
+      wrap.innerHTML = "";
+      new window.QRCode(wrap, { text: txt, width: 220, height: 220, correctLevel: window.QRCode.CorrectLevel.H });
+      setTimeout(async () => {
+        const c = wrap.querySelector("canvas");
+        const im = wrap.querySelector("img");
+        if (c && c.toBlob) {
+          c.toBlob((blob) => {
+            if (blob) dlArea.innerHTML = downloadResultCardHtml(blob, "qrcode.png");
+          }, "image/png");
+        } else if (im && im.src) {
+          try {
+            const b = await (await fetch(im.src)).blob();
+            dlArea.innerHTML = downloadResultCardHtml(b, "qrcode.png");
+          } catch (_) {}
+        }
+      }, 80);
+    }
+
+    document.getElementById("qr-make-btn").addEventListener("click", buildQr);
+    buildQr();
+  }
+
+  function mountCreateZip(bodyEl) {
+    bodyEl.innerHTML = `
+      <div class="space-y-3">
+        <label class="flex flex-col items-center justify-center w-full h-28 rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 cursor-pointer">
+          <span class="text-xs font-bold text-slate-800 dark:text-slate-200">Select multiple files to ZIP</span>
+          <span id="zip-count-lbl" class="text-[10px] text-slate-400 mt-1">Processed locally with JSZip</span>
+          <input id="zip-files-input" type="file" multiple class="hidden" />
+        </label>
+        <button id="zip-go-btn" class="w-full py-3 rounded-2xl skin-bg text-white text-xs font-bold skin-shadow" disabled>Create ZIP Archive</button>
+        <div id="zip-out"></div>
+      </div>`;
+
+    const input = document.getElementById("zip-files-input");
+    const btn = document.getElementById("zip-go-btn");
+    const out = document.getElementById("zip-out");
+    input.addEventListener("change", () => {
+      const n = input.files.length;
+      document.getElementById("zip-count-lbl").textContent = n ? `${n} file(s) ready` : "Select files";
+      btn.disabled = n === 0;
+    });
+    btn.addEventListener("click", async () => {
+      out.innerHTML = loadingSpinnerHtml("Compressing files into ZIP...");
+      try {
+        await loadClientLibrary("jszip", "https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js");
+        const zip = new window.JSZip();
+        let total = 0;
+        for (const f of input.files) {
+          total += f.size;
+          zip.file(f.name, await f.arrayBuffer());
+        }
+        const blob = await zip.generateAsync({ type: "blob", compression: "DEFLATE", compressionOptions: { level: 6 } });
+        out.innerHTML = downloadResultCardHtml(blob, "allmedia_archive.zip", total);
+      } catch (err) {
+        out.innerHTML = errorBoxHtml(err.message);
+      }
+    });
+  }
+
+  function mountLoremGenerator(bodyEl) {
+    bodyEl.innerHTML = `
+      <div class="space-y-3">
+        <div class="flex items-center gap-2">
+          <label class="text-xs font-semibold text-slate-600 dark:text-slate-300">Paragraphs:</label>
+          <input id="lorem-count" type="number" min="1" max="15" value="3" class="w-20 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-2.5 py-1.5 text-xs" />
+          <button id="lorem-gen-btn" class="flex-1 py-2 rounded-xl skin-bg text-white text-xs font-bold">Generate</button>
+        </div>
+        <textarea id="lorem-out" rows="6" class="w-full rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-2.5 text-xs text-slate-800 dark:text-slate-200"></textarea>
+        <div class="flex gap-2">
+          <button id="lorem-copy-btn" class="flex-1 py-2 rounded-xl bg-slate-200 dark:bg-slate-700 text-xs font-bold text-slate-900 dark:text-white">Copy Text</button>
+          <button id="lorem-dl-btn" class="flex-1 py-2 rounded-xl skin-bg text-white text-xs font-bold">Save .TXT</button>
+        </div>
+      </div>`;
+    const bank = [
+      "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Integer nec odio. Praesent libero. Sed cursus ante dapibus diam.",
+      "Sed nisi. Nulla quis sem at nibh elementum imperdiet. Duis sagittis ipsum. Praesent mauris. Fusce nec tellus sed augue semper porta.",
+      "Mauris massa. Vestibulum lacinia arcu eget nulla. Class aptent taciti sociosqu ad litora torquent per conubia nostra, per inceptos himenaeos.",
+      "Curabitur sodales ligula in libero. Sed dignissim lacinia nunc. Curabitur tortor. Pellentesque nibh. Aenean quam.",
+    ];
+    function gen() {
+      const c = Math.max(1, Math.min(15, parseInt(document.getElementById("lorem-count").value || "3", 10)));
+      const lines = Array.from({ length: c }, (_, i) => bank[i % bank.length]);
+      document.getElementById("lorem-out").value = lines.join("\n\n");
+    }
+    document.getElementById("lorem-gen-btn").addEventListener("click", gen);
+    document.getElementById("lorem-copy-btn").addEventListener("click", () => {
+      navigator.clipboard?.writeText(document.getElementById("lorem-out").value);
+      showToast("Copied to clipboard!");
+    });
+    document.getElementById("lorem-dl-btn").addEventListener("click", () => {
+      downloadBlob(new Blob([document.getElementById("lorem-out").value], { type: "text/plain" }), "lorem_ipsum.txt");
+    });
+    gen();
+  }
+
+  function mountEpochConverter(bodyEl) {
+    const nowSec = Math.floor(Date.now() / 1000);
+    bodyEl.innerHTML = `
+      <div class="space-y-3">
+        <div class="p-3 rounded-xl bg-slate-100 dark:bg-slate-800 text-xs flex justify-between items-center">
+          <span class="font-semibold text-slate-600 dark:text-slate-300">Current Unix Epoch:</span>
+          <strong id="epoch-live" class="font-mono skin-text">${nowSec}</strong>
+        </div>
+        <div class="flex gap-2">
+          <input id="epoch-in" type="number" value="${nowSec}" class="flex-1 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-3 py-2 text-xs font-mono" />
+          <button id="epoch-btn" class="px-3.5 py-2 rounded-xl skin-bg text-white text-xs font-bold">Convert</button>
+        </div>
+        <div id="epoch-out" class="p-3 rounded-xl bg-slate-100 dark:bg-slate-800 text-xs space-y-1"></div>
+      </div>`;
+    function convert() {
+      const val = Number(document.getElementById("epoch-in").value.trim());
+      if (!Number.isFinite(val)) { document.getElementById("epoch-out").innerHTML = errorBoxHtml("Invalid timestamp."); return; }
+      const ms = val > 1e12 ? val : val * 1000;
+      const d = new Date(ms);
+      document.getElementById("epoch-out").innerHTML = `<div><strong>UTC:</strong> ${d.toUTCString()}</div><div><strong>Local:</strong> ${d.toLocaleString()}</div><div><strong>ISO 8601:</strong> ${d.toISOString()}</div>`;
+    }
+    document.getElementById("epoch-btn").addEventListener("click", convert);
+    convert();
+  }
+
+  // Real Client CSV / JSON / XML / Excel Converters (PapaParse + SheetJS XLSX)
+  function mountDataConverter(bodyEl, tool) {
+    const acceptMap = {
+      csv_to_json: ".csv,text/csv",
+      csv_to_excel: ".csv,text/csv",
+      split_csv: ".csv,text/csv",
+      json_to_xml: ".json,application/json",
+      excel_to_csv: ".xlsx,.xls",
+      split_excel: ".xlsx,.xls",
+      excel_to_json: ".xlsx,.xls",
+      xml_to_excel: ".xml,text/xml",
+    };
+    const extraCtrl = (tool.op === "split_csv" || tool.op === "split_excel")
+      ? `<label class="flex items-center gap-2 text-xs font-semibold text-slate-600 dark:text-slate-300">Rows per file: <input id="data-rows-per" type="number" min="1" value="100" class="w-24 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 px-2 py-1"></label>`
+      : "";
+
+    bodyEl.innerHTML = `
+      <div class="space-y-3">
+        <label class="flex flex-col items-center justify-center w-full h-28 rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 cursor-pointer">
+          <span class="text-xs font-bold text-slate-800 dark:text-slate-200">Select file to convert (${tool.name})</span>
+          <span id="data-file-lbl" class="text-[10px] text-slate-400 mt-1">Instant browser conversion • Zero upload</span>
+          <input id="data-file-in" type="file" accept="${acceptMap[tool.op] || "*"}" class="hidden" />
+        </label>
+        ${extraCtrl}
+        <button id="data-go-btn" class="w-full py-3 rounded-2xl skin-bg text-white text-xs font-bold skin-shadow" disabled>Convert Now</button>
+        <div id="data-out"></div>
+      </div>`;
+
+    const fileIn = document.getElementById("data-file-in");
+    const btn = document.getElementById("data-go-btn");
+    const out = document.getElementById("data-out");
+
+    fileIn.addEventListener("change", () => {
+      const f = fileIn.files[0];
+      document.getElementById("data-file-lbl").textContent = f ? `${f.name} (${formatBytes(f.size)})` : "Select file";
+      btn.disabled = !f;
+    });
+
+    btn.addEventListener("click", async () => {
+      const f = fileIn.files[0];
+      if (!f) return;
+      out.innerHTML = loadingSpinnerHtml("Converting locally...");
+      const base = f.name.replace(/\.[^.]+$/, "");
+      try {
+        const needsPapa = ["csv_to_json", "csv_to_excel", "split_csv"].includes(tool.op);
+        const needsXlsx = !["csv_to_json", "json_to_xml", "split_csv"].includes(tool.op);
+        const needsZip = ["split_csv", "split_excel"].includes(tool.op);
+        await Promise.all([
+          ...(needsPapa ? [loadClientLibrary("papaparse", "https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js")] : []),
+          ...(needsXlsx ? [loadClientLibrary("xlsx", "https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js")] : []),
+          ...(needsZip ? [loadClientLibrary("jszip", "https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js")] : []),
+        ]);
+        if (tool.op === "csv_to_json") {
+          const text = await f.text();
+          const parsed = window.Papa.parse(text, { header: true, skipEmptyLines: true });
+          const blob = new Blob([JSON.stringify(parsed.data, null, 2)], { type: "application/json" });
+          out.innerHTML = downloadResultCardHtml(blob, `${base}.json`, f.size);
+        } else if (tool.op === "json_to_xml") {
+          const obj = JSON.parse(await f.text());
+          const toXml = (val, tag = "item") => {
+            if (Array.isArray(val)) return val.map((v) => `<${tag}>${toXml(v, "entry")}</${tag}>`).join("");
+            if (val && typeof val === "object") {
+              return Object.entries(val).map(([k, v]) => `<${k.replace(/[^a-zA-Z0-9_-]/g, "_")}>${toXml(v, "item")}</${k.replace(/[^a-zA-Z0-9_-]/g, "_")}>`).join("");
+            }
+            return escapeHtml(String(val ?? ""));
+          };
+          const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<root>${toXml(obj)}</root>`;
+          out.innerHTML = downloadResultCardHtml(new Blob([xml], { type: "application/xml" }), `${base}.xml`, f.size);
+        } else if (tool.op === "csv_to_excel") {
+          const parsed = window.Papa.parse(await f.text(), { header: true, skipEmptyLines: true });
+          const ws = window.XLSX.utils.json_to_sheet(parsed.data);
+          const wb = window.XLSX.utils.book_new();
+          window.XLSX.utils.book_append_sheet(wb, ws, "Sheet1");
+          const arr = window.XLSX.write(wb, { bookType: "xlsx", type: "array" });
+          out.innerHTML = downloadResultCardHtml(new Blob([arr], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }), `${base}.xlsx`, f.size);
+        } else if (tool.op === "excel_to_csv" || tool.op === "excel_to_json") {
+          const wb = window.XLSX.read(await f.arrayBuffer(), { type: "array" });
+          const ws = wb.Sheets[wb.SheetNames[0]];
+          if (tool.op === "excel_to_csv") {
+            const csv = window.XLSX.utils.sheet_to_csv(ws);
+            out.innerHTML = downloadResultCardHtml(new Blob([csv], { type: "text/csv" }), `${base}.csv`, f.size);
+          } else {
+            const json = window.XLSX.utils.sheet_to_json(ws);
+            out.innerHTML = downloadResultCardHtml(new Blob([JSON.stringify(json, null, 2)], { type: "application/json" }), `${base}.json`, f.size);
+          }
+        } else if (tool.op === "xml_to_excel") {
+          const doc = new DOMParser().parseFromString(await f.text(), "application/xml");
+          const rows = Array.from(doc.documentElement.children).map((node) => {
+            const row = {};
+            Array.from(node.children).forEach((child) => { row[child.tagName] = child.textContent; });
+            return Object.keys(row).length ? row : { value: node.textContent };
+          });
+          const ws = window.XLSX.utils.json_to_sheet(rows);
+          const wb = window.XLSX.utils.book_new();
+          window.XLSX.utils.book_append_sheet(wb, ws, "Sheet1");
+          const arr = window.XLSX.write(wb, { bookType: "xlsx", type: "array" });
+          out.innerHTML = downloadResultCardHtml(new Blob([arr], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }), `${base}.xlsx`, f.size);
+        } else if (tool.op === "split_csv") {
+          const per = Math.max(1, parseInt(document.getElementById("data-rows-per").value || "100", 10));
+          const parsed = window.Papa.parse(await f.text(), { header: true, skipEmptyLines: true });
+          const zip = new window.JSZip();
+          for (let i = 0, part = 1; i < parsed.data.length; i += per, part++) {
+            const chunk = parsed.data.slice(i, i + per);
+            zip.file(`${base}_part_${part}.csv`, window.Papa.unparse(chunk));
+          }
+          const zblob = await zip.generateAsync({ type: "blob" });
+          out.innerHTML = downloadResultCardHtml(zblob, `${base}_split_csv.zip`, f.size);
+        } else if (tool.op === "split_excel") {
+          const per = Math.max(1, parseInt(document.getElementById("data-rows-per").value || "100", 10));
+          const wb = window.XLSX.read(await f.arrayBuffer(), { type: "array" });
+          const rows = window.XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
+          const zip = new window.JSZip();
+          for (let i = 0, part = 1; i < rows.length; i += per, part++) {
+            const newWb = window.XLSX.utils.book_new();
+            window.XLSX.utils.book_append_sheet(newWb, window.XLSX.utils.json_to_sheet(rows.slice(i, i + per)), "Sheet1");
+            zip.file(`${base}_part_${part}.xlsx`, window.XLSX.write(newWb, { bookType: "xlsx", type: "array" }));
+          }
+          const zblob = await zip.generateAsync({ type: "blob" });
+          out.innerHTML = downloadResultCardHtml(zblob, `${base}_split_xlsx.zip`, f.size);
+        }
+      } catch (err) {
+        out.innerHTML = errorBoxHtml(`Conversion error: ${err.message}`);
+      }
+    });
+  }
+
+  // Real Client HTML5 Canvas Tools (Crop, Round, Profile, Rotate/Flip, B&W, Pixelate, Meme, Text, Split, PNG/SVG)
+  function mountCanvasImageTool(bodyEl, tool) {
+    let extraControls = "";
+    if (tool.op === "crop") {
+      extraControls = `
+        <div class="grid grid-cols-2 gap-2 text-xs">
+          <label>X Offset % <input id="c-x" type="range" min="0" max="50" value="10" class="w-full" /></label>
+          <label>Y Offset % <input id="c-y" type="range" min="0" max="50" value="10" class="w-full" /></label>
+          <label>Width % <input id="c-w" type="range" min="20" max="100" value="80" class="w-full" /></label>
+          <label>Height % <input id="c-h" type="range" min="20" max="100" value="80" class="w-full" /></label>
+        </div>`;
+    } else if (tool.op === "profile") {
+      extraControls = `<div class="flex items-center gap-3 text-xs"><label>Ring Color <input id="c-ring-color" type="color" value="#2563eb" /></label><label>Thickness <input id="c-ring-px" type="range" min="0" max="40" value="16" /></label></div>`;
+    } else if (tool.op === "rotate_flip") {
+      extraControls = `<div class="flex gap-2 text-xs"><select id="c-rot" class="flex-1 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-2"><option value="90">Rotate 90° Right</option><option value="180">Rotate 180°</option><option value="270">Rotate 90° Left</option><option value="fliph">Flip Horizontal</option><option value="flipv">Flip Vertical</option></select></div>`;
+    } else if (tool.op === "pixelate") {
+      extraControls = `<label class="text-xs flex items-center gap-2">Block Size: <input id="c-pix" type="range" min="4" max="40" value="14" class="flex-1" /></label>`;
+    } else if (tool.op === "meme" || tool.op === "add_text") {
+      extraControls = `
+        <div class="space-y-2 text-xs">
+          <input id="c-top-txt" type="text" placeholder="${tool.op === "meme" ? "Top meme text..." : "Text to add..."}" class="w-full rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-3 py-2" />
+          ${tool.op === "meme" ? '<input id="c-bot-txt" type="text" placeholder="Bottom meme text..." class="w-full rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-3 py-2" />' : '<div class="flex gap-2 items-center"><label>Color <input id="c-txt-col" type="color" value="#ffffff" /></label><label class="flex-1">Size <input id="c-txt-sz" type="range" min="20" max="90" value="44" class="w-full" /></label></div>'}
+        </div>`;
+    } else if (tool.op === "split") {
+      extraControls = `<select id="c-grid" class="w-full rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-2 text-xs"><option value="2x2">2×2 (4 Tiles ZIP)</option><option value="3x3">3×3 (9 Tiles ZIP)</option><option value="1x2">Horizontal 2 Halves ZIP</option></select>`;
+    }
+
+    bodyEl.innerHTML = `
+      <div class="space-y-3">
+        <label class="flex flex-col items-center justify-center w-full h-24 rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 cursor-pointer">
+          <span class="text-xs font-bold text-slate-800 dark:text-slate-200">Tap to choose photo</span>
+          <span id="canvas-file-lbl" class="text-[10px] text-slate-400 mt-0.5">Instant HTML5 Canvas engine</span>
+          <input id="canvas-file-in" type="file" accept="${tool.op === "svg_to_png" ? ".svg,image/svg+xml" : "image/*"}" class="hidden" />
+        </label>
+        ${extraControls}
+        <button id="canvas-go-btn" class="w-full py-3 rounded-2xl skin-bg text-white text-xs font-bold skin-shadow" disabled>Apply &amp; Download</button>
         <div id="canvas-out"></div>
       </div>`;
 

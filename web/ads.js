@@ -15,29 +15,44 @@
     let currentKey;
     slot.hidden = false;
 
-    new ResizeObserver(([entry]) => {
-      const format = formats.find(({ width }) => width <= entry.contentRect.width);
+    let rafId = 0;
+    const renderForWidth = (width) => {
+      const format = formats.find((item) => item.width <= width);
       if (!format || (desktopOnly && !matchMedia("(min-width: 768px)").matches)) {
-        currentKey = undefined;
-        slot.replaceChildren();
+        if (currentKey !== undefined || slot.children?.length) {
+          currentKey = undefined;
+          slot.replaceChildren();
+        }
         return;
       }
       if (format.key === currentKey) return;
       currentKey = format.key;
 
-      const { width, height, key } = format;
+      const { width: adWidth, height, key } = format;
       const label = document.createElement("small");
       label.textContent = "Advertisement";
       const frame = document.createElement("iframe");
       frame.title = "Advertisement";
-      frame.width = width;
+      frame.width = adWidth;
       frame.height = height;
-      frame.loading = "lazy";
-      frame.setAttribute("sandbox", "allow-scripts allow-popups allow-popups-to-escape-sandbox");
+      frame.loading = "eager";
       frame.referrerPolicy = "strict-origin-when-cross-origin";
-      const options = { key, format: "iframe", width, height, params: {} };
+      const options = { key, format: "iframe", width: adWidth, height, params: {} };
       frame.srcdoc = `<!doctype html><meta charset="utf-8"><style>body{margin:0;overflow:hidden}</style><script>window.atOptions=${JSON.stringify(options)}</script><script data-cfasync="false" type="text/javascript" src="https://bauval.org/22/${key}"></script>`;
       slot.replaceChildren(label, frame);
+    };
+
+    new ResizeObserver(([entry]) => {
+      const width = entry.contentRect.width || slot.getBoundingClientRect?.().width || 0;
+      if (typeof requestAnimationFrame === "function") {
+        if (rafId) cancelAnimationFrame(rafId);
+        rafId = requestAnimationFrame(() => {
+          rafId = 0;
+          renderForWidth(width);
+        });
+      } else {
+        renderForWidth(width);
+      }
     }).observe(slot);
   }
 })();
